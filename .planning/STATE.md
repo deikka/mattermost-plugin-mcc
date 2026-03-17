@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-17T08:27:50.162Z"
-last_activity: "2026-03-17 -- Plan 01-03 completed (Core Plane command handlers: create, mine, status)"
+status: in-progress
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-17T09:17:09Z"
+last_activity: "2026-03-17 -- Plan 02-02 completed (Plane link unfurling via MessageHasBeenPosted)"
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 4
-  completed_plans: 4
-  percent: 50
+  total_plans: 8
+  completed_plans: 5
+  percent: 62
 ---
 
 # Project State
@@ -25,29 +25,30 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 
 ## Current Position
 
-Phase: 1 of 3 (Foundation + Core Plane Commands)
-Plan: 4 of 4 in current phase (all plans complete)
-Status: Phase 1 complete -- all Plane commands implemented
-Last activity: 2026-03-17 -- Plan 01-03 completed (Core Plane command handlers: create, mine, status)
+Phase: 2 of 3 (Channel Intelligence + Context Menu)
+Plan: 3 of 4 in current phase
+Status: Plan 02-02 complete -- link unfurling implemented
+Last activity: 2026-03-17 -- Plan 02-02 completed (Plane link unfurling via MessageHasBeenPosted)
 
-Progress: [█████░░░░░] 50%
+Progress: [██████░░░░] 62%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 10 min
-- Total execution time: 0.7 hours
+- Total plans completed: 5
+- Average duration: 11 min
+- Total execution time: 0.9 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 4/4 | 42 min | 10 min |
+| 2 | 1/4 | 12 min | 12 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-00 (11 min), 01-01 (15 min), 01-02 (8 min), 01-03 (8 min)
-- Trend: Accelerating
+- Last 5 plans: 01-01 (15 min), 01-02 (8 min), 01-03 (8 min), 02-02 (12 min)
+- Trend: Stable
 
 *Updated after each plan completion*
 
@@ -76,6 +77,10 @@ Recent decisions affecting current work:
 - [01-03]: Inline create uses first project as default when multiple projects exist
 - [01-03]: Mine command limits to 5 projects and 10 total items for rate limit safety
 - [01-03]: Status groups mapped to 3 display categories: Open, In Progress, Done
+- [02-02]: Only first Plane URL per message unfurled to avoid spam
+- [02-02]: Assignee resolved via cached ListWorkspaceMembers (not extra API call per user)
+- [02-02]: GetWorkItem uses expand=state_detail,project_detail for enriched response
+- [02-02]: Bot posts skipped via UserId comparison to prevent infinite unfurl loops
 
 ### Pending Todos
 
@@ -89,6 +94,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T08:27:50.158Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-channel-intelligence-context-menu/02-CONTEXT.md
+Last session: 2026-03-17T09:17:09Z
+Stopped at: Completed 02-02-PLAN.md
+Resume file: .planning/phases/02-channel-intelligence-context-menu/02-02-SUMMARY.md
