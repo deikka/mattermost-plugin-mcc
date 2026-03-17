@@ -28,12 +28,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Usuario puede crear una tarea en Plane via `/task plane create`, completar el dialogo interactivo, y recibir confirmacion efimera con link a la tarea creada
   4. Usuario puede ver sus tareas asignadas en Plane via `/task plane mine` y el estado de un proyecto via `/task plane status`
   5. Usuario puede ver la lista de comandos disponibles via `/task help`
-**Plans**: TBD
+**Plans:** 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md — Plugin scaffold, System Console config, bot account, command registration with autocomplete, /task help
+- [ ] 01-02-PLAN.md — Plane API client, KV store, cache, /task connect, /task obsidian setup, HTTP API endpoints
+- [ ] 01-03-PLAN.md — /task plane create (dialog + inline), /task plane mine, /task plane status, ephemeral confirmations
 
 ### Phase 2: Channel Intelligence + Context Menu
 **Goal**: Canales de Mattermost funcionan como espacios de proyecto donde crear tareas es un clic desde cualquier mensaje, con contexto automatico del proyecto vinculado
