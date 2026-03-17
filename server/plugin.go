@@ -12,6 +12,9 @@ import (
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
 	"github.com/pkg/errors"
+
+	"github.com/klab/mattermost-plugin-mcc/server/plane"
+	"github.com/klab/mattermost-plugin-mcc/server/store"
 )
 
 // Plugin implements the Mattermost plugin interface.
@@ -21,9 +24,11 @@ type Plugin struct {
 	configurationLock sync.RWMutex
 	configuration     *configuration
 
-	client    *pluginapi.Client
-	botUserID string
-	router    *mux.Router
+	client      *pluginapi.Client
+	botUserID   string
+	router      *mux.Router
+	planeClient *plane.Client
+	store       *store.Store
 }
 
 // OnActivate is invoked when the plugin is activated. If an error is returned, the plugin
@@ -40,6 +45,13 @@ func (p *Plugin) OnActivate() error {
 	if err := p.ensureBot(); err != nil {
 		return err
 	}
+
+	// Initialize KV store
+	p.store = store.New(p.API)
+
+	// Initialize Plane client
+	cfg := p.getConfiguration()
+	p.planeClient = plane.NewClient(cfg.PlaneURL, cfg.PlaneAPIKey, cfg.PlaneWorkspace)
 
 	// Register slash commands
 	if err := p.registerCommands(); err != nil {

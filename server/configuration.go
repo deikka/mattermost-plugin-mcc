@@ -73,5 +73,11 @@ func (p *Plugin) OnConfigurationChange() error {
 
 	p.setConfiguration(configuration)
 
+	// Update Plane client if it exists (it won't exist during initial OnActivate call)
+	if p.planeClient != nil {
+		p.planeClient.UpdateConfig(configuration.PlaneURL, configuration.PlaneAPIKey, configuration.PlaneWorkspace)
+		p.planeClient.InvalidateCache()
+	}
+
 	return nil
 }
