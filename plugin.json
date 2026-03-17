@@ -1,0 +1,47 @@
+{
+    "id": "com.klab.mattermost-command-center",
+    "name": "Mattermost Command Center",
+    "description": "Task management plugin that connects Mattermost with Plane and Obsidian. Create, query, and manage tasks without leaving chat.",
+    "homepage_url": "https://github.com/klab/mattermost-plugin-mcc",
+    "support_url": "https://github.com/klab/mattermost-plugin-mcc/issues",
+    "icon_path": "assets/icon.svg",
+    "min_server_version": "9.0.0",
+    "server": {
+        "executables": {
+            "linux-amd64": "server/dist/plugin-linux-amd64",
+            "darwin-amd64": "server/dist/plugin-darwin-amd64",
+            "darwin-arm64": "server/dist/plugin-darwin-arm64"
+        }
+    },
+    "settings_schema": {
+        "header": "Configure the connection to your Plane instance. All three fields are required for the plugin to function.",
+        "footer": "Need help? Visit the [plugin documentation](https://github.com/klab/mattermost-plugin-mcc).",
+        "settings": [
+            {
+                "key": "PlaneURL",
+                "display_name": "Plane URL",
+                "type": "text",
+                "help_text": "Base URL of your Plane instance (e.g., https://plane.example.com). Do not include a trailing slash.",
+                "placeholder": "https://plane.example.com",
+                "default": ""
+            },
+            {
+                "key": "PlaneAPIKey",
+                "display_name": "Plane API Key",
+                "type": "text",
+                "help_text": "API key from your Plane workspace settings. Found in Plane > Settings > API Tokens.",
+                "placeholder": "",
+                "default": "",
+                "secret": true
+            },
+            {
+                "key": "PlaneWorkspace",
+                "display_name": "Plane Workspace Slug",
+                "type": "text",
+                "help_text": "Workspace slug from your Plane URL (e.g., if your Plane URL is plane.example.com/my-team, the slug is 'my-team').",
+                "placeholder": "my-team",
+                "default": ""
+            }
+        ]
+    }
+}
