@@ -120,6 +120,7 @@ func TestCreateTask(t *testing.T) {
 	}
 	data, _ := json.Marshal(mapping)
 	api.On("KVGet", "user_plane_user-1").Return(data, nil)
+	api.On("KVGet", "channel_project_channel-1").Return(nil, nil).Maybe()
 
 	// Mock: dialog opens successfully
 	api.On("OpenInteractiveDialog", mock.MatchedBy(func(req model.OpenDialogRequest) bool {
@@ -164,6 +165,7 @@ func TestCreateTaskInlineMode(t *testing.T) {
 	}
 	data, _ := json.Marshal(mapping)
 	api.On("KVGet", "user_plane_user-1").Return(data, nil)
+	api.On("KVGet", "channel_project_channel-1").Return(nil, nil).Maybe()
 
 	args := &model.CommandArgs{
 		Command:   "/task plane create Fix the login bug",

@@ -276,6 +276,19 @@ func (p *Plugin) handleCreateTaskDialog(w http.ResponseWriter, r *http.Request) 
 	msg := formatTaskCreatedMessage(title, projectName, workItemURL)
 	p.sendEphemeral(request.UserId, request.ChannelId, msg)
 
+	// Add reaction to source post if this dialog was opened from a message
+	sourcePostID := r.URL.Query().Get("source_post_id")
+	if sourcePostID != "" {
+		reaction := &model.Reaction{
+			UserId:    p.botUserID,
+			PostId:    sourcePostID,
+			EmojiName: "memo",
+		}
+		if _, appErr := p.API.AddReaction(reaction); appErr != nil {
+			p.API.LogWarn("Failed to add reaction to source post", "error", appErr.Error())
+		}
+	}
+
 	// Return 200 with empty JSON to dismiss dialog
 	writeJSON(w, http.StatusOK, map[string]interface{}{})
 }
