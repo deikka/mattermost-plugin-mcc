@@ -147,16 +147,195 @@ func TestHandlePlaneNotifications_NoArgs(t *testing.T) {
 	}))
 }
 
-// === Skipped test stubs for Plan 03-02 ===
+// === Digest command tests (Plan 03-02) ===
 
 func TestHandlePlaneDigest_Daily(t *testing.T) {
-	t.Skip("Plan 03-02: /task plane digest daily [hour] sets daily digest")
+	p, api := setupNotifyTestPlugin(t)
+
+	// Channel is bound to a project
+	binding := &store.ChannelProjectBinding{
+		ProjectID:   "proj-1",
+		ProjectName: "Alpha",
+		BoundBy:     "user-1",
+		BoundAt:     1710000000,
+	}
+	bindingData, _ := json.Marshal(binding)
+	api.On("KVGet", "channel_project_channel-1").Return(bindingData, nil)
+
+	// SaveDigestConfig should be called with daily, hour=9 default
+	api.On("KVSet", mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, "digest_config_")
+	}), mock.MatchedBy(func(data []byte) bool {
+		var cfg store.DigestConfig
+		_ = json.Unmarshal(data, &cfg)
+		return cfg.Frequency == "daily" && cfg.Hour == 9 && cfg.UpdatedBy == "user-1"
+	})).Return(nil)
+
+	args := &model.CommandArgs{
+		Command:   "/task plane digest daily",
+		UserId:    "user-1",
+		ChannelId: "channel-1",
+	}
+
+	resp := handlePlaneDigest(p, nil, args, []string{"daily"})
+	require.NotNil(t, resp)
+
+	// Verify ephemeral confirmation contains the configured hour and project name
+	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+		return strings.Contains(post.Message, "diario") &&
+			strings.Contains(post.Message, "9:00") &&
+			strings.Contains(post.Message, "Alpha")
+	}))
+}
+
+func TestHandlePlaneDigest_DailyWithHour(t *testing.T) {
+	p, api := setupNotifyTestPlugin(t)
+
+	// Channel is bound
+	binding := &store.ChannelProjectBinding{
+		ProjectID:   "proj-1",
+		ProjectName: "Alpha",
+		BoundBy:     "user-1",
+		BoundAt:     1710000000,
+	}
+	bindingData, _ := json.Marshal(binding)
+	api.On("KVGet", "channel_project_channel-1").Return(bindingData, nil)
+
+	// SaveDigestConfig with hour=14
+	api.On("KVSet", mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, "digest_config_")
+	}), mock.MatchedBy(func(data []byte) bool {
+		var cfg store.DigestConfig
+		_ = json.Unmarshal(data, &cfg)
+		return cfg.Frequency == "daily" && cfg.Hour == 14 && cfg.UpdatedBy == "user-1"
+	})).Return(nil)
+
+	args := &model.CommandArgs{
+		Command:   "/task plane digest daily 14",
+		UserId:    "user-1",
+		ChannelId: "channel-1",
+	}
+
+	resp := handlePlaneDigest(p, nil, args, []string{"daily", "14"})
+	require.NotNil(t, resp)
+
+	// Verify confirmation mentions 14:00
+	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+		return strings.Contains(post.Message, "14:00")
+	}))
 }
 
 func TestHandlePlaneDigest_Weekly(t *testing.T) {
-	t.Skip("Plan 03-02: /task plane digest weekly [hour] sets weekly digest")
+	p, api := setupNotifyTestPlugin(t)
+
+	// Channel is bound
+	binding := &store.ChannelProjectBinding{
+		ProjectID:   "proj-1",
+		ProjectName: "Alpha",
+		BoundBy:     "user-1",
+		BoundAt:     1710000000,
+	}
+	bindingData, _ := json.Marshal(binding)
+	api.On("KVGet", "channel_project_channel-1").Return(bindingData, nil)
+
+	// SaveDigestConfig with weekly, weekday=1 (Monday)
+	api.On("KVSet", mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, "digest_config_")
+	}), mock.MatchedBy(func(data []byte) bool {
+		var cfg store.DigestConfig
+		_ = json.Unmarshal(data, &cfg)
+		return cfg.Frequency == "weekly" && cfg.Hour == 9 && cfg.Weekday == 1 && cfg.UpdatedBy == "user-1"
+	})).Return(nil)
+
+	args := &model.CommandArgs{
+		Command:   "/task plane digest weekly",
+		UserId:    "user-1",
+		ChannelId: "channel-1",
+	}
+
+	resp := handlePlaneDigest(p, nil, args, []string{"weekly"})
+	require.NotNil(t, resp)
+
+	// Verify confirmation mentions weekly and Monday
+	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+		return strings.Contains(post.Message, "semanal") &&
+			strings.Contains(post.Message, "lunes")
+	}))
 }
 
 func TestHandlePlaneDigest_Off(t *testing.T) {
-	t.Skip("Plan 03-02: /task plane digest off disables digest")
+	p, api := setupNotifyTestPlugin(t)
+
+	// Channel is bound
+	binding := &store.ChannelProjectBinding{
+		ProjectID:   "proj-1",
+		ProjectName: "Alpha",
+		BoundBy:     "user-1",
+		BoundAt:     1710000000,
+	}
+	bindingData, _ := json.Marshal(binding)
+	api.On("KVGet", "channel_project_channel-1").Return(bindingData, nil)
+
+	// SaveDigestConfig with frequency="off"
+	api.On("KVSet", mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, "digest_config_")
+	}), mock.MatchedBy(func(data []byte) bool {
+		var cfg store.DigestConfig
+		_ = json.Unmarshal(data, &cfg)
+		return cfg.Frequency == "off"
+	})).Return(nil)
+
+	args := &model.CommandArgs{
+		Command:   "/task plane digest off",
+		UserId:    "user-1",
+		ChannelId: "channel-1",
+	}
+
+	resp := handlePlaneDigest(p, nil, args, []string{"off"})
+	require.NotNil(t, resp)
+
+	// Verify confirmation
+	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+		return strings.Contains(post.Message, "desactivado")
+	}))
+}
+
+func TestHandlePlaneDigest_RequiresBinding(t *testing.T) {
+	p, api := setupNotifyTestPlugin(t)
+
+	// Channel is NOT bound
+	api.On("KVGet", "channel_project_channel-1").Return(nil, nil)
+
+	args := &model.CommandArgs{
+		Command:   "/task plane digest daily",
+		UserId:    "user-1",
+		ChannelId: "channel-1",
+	}
+
+	resp := handlePlaneDigest(p, nil, args, []string{"daily"})
+	require.NotNil(t, resp)
+
+	// Should get binding required message
+	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+		return strings.Contains(post.Message, "no esta vinculado") &&
+			strings.Contains(post.Message, "/task plane link")
+	}))
+}
+
+func TestHandlePlaneDigest_InvalidFrequency(t *testing.T) {
+	p, api := setupNotifyTestPlugin(t)
+
+	args := &model.CommandArgs{
+		Command:   "/task plane digest hourly",
+		UserId:    "user-1",
+		ChannelId: "channel-1",
+	}
+
+	resp := handlePlaneDigest(p, nil, args, []string{"hourly"})
+	require.NotNil(t, resp)
+
+	// Should get usage help
+	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+		return strings.Contains(post.Message, "daily|weekly|off")
+	}))
 }
