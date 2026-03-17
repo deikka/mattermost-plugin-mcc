@@ -32,7 +32,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 Plans:
 - [x] 01-00-PLAN.md — Wave 0: Test infrastructure scaffolding (test helpers, mock Plane server, test stubs)
-- [ ] 01-01-PLAN.md — Plugin scaffold, System Console config, bot account, command registration with autocomplete, /task help
+- [x] 01-01-PLAN.md — Plugin scaffold, System Console config, bot account, command registration with autocomplete, /task help
 - [ ] 01-02-PLAN.md — Plane API client, KV store, cache, /task connect, /task obsidian setup, HTTP API endpoints
 - [ ] 01-03-PLAN.md — /task plane create (dialog + inline), /task plane mine, /task plane status, ephemeral confirmations
 
@@ -70,6 +70,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Core Plane Commands | 1/4 | In progress | - |
+| 1. Foundation + Core Plane Commands | 2/4 | In progress | - |
 | 2. Channel Intelligence + Context Menu | 0/2 | Not started | - |
 | 3. Notifications + Automation | 0/1 | Not started | - |
