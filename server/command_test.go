@@ -571,19 +571,228 @@ func TestRequirePlaneConnection(t *testing.T) {
 	})
 }
 
-// Stubs for Plan 01-03
+// setupMineStatusTestPlugin creates a plugin with a mock Plane server that serves
+// projects, work items, and states for /task plane mine and /task plane status tests.
+func setupMineStatusTestPlugin(t *testing.T, workItems []plane.WorkItem) (*Plugin, *plugintest.API, *httptest.Server) {
+	t.Helper()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		switch {
+		case strings.Contains(r.URL.Path, "/states/"):
+			resp := map[string]interface{}{
+				"results": []plane.State{
+					{ID: "s1", Name: "Backlog", Group: "backlog", Sequence: 1},
+					{ID: "s2", Name: "Todo", Group: "unstarted", Sequence: 2},
+					{ID: "s3", Name: "In Progress", Group: "started", Sequence: 3},
+					{ID: "s4", Name: "Done", Group: "completed", Sequence: 4},
+					{ID: "s5", Name: "Cancelled", Group: "cancelled", Sequence: 5},
+				},
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+
+		case strings.Contains(r.URL.Path, "/work-items/"):
+			resp := map[string]interface{}{
+				"results": workItems,
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+
+		case strings.Contains(r.URL.Path, "/projects/"):
+			resp := map[string]interface{}{
+				"results": []plane.Project{
+					{ID: "proj-1", Name: "Alpha", Identifier: "ALP"},
+					{ID: "proj-2", Name: "Beta", Identifier: "BET"},
+				},
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	api := &plugintest.API{}
+	api.On("SendEphemeralPost", mock.Anything, mock.AnythingOfType("*model.Post")).Return(nil).Maybe()
+	api.On("LogInfo", mock.Anything).Maybe()
+	api.On("LogInfo", mock.Anything, mock.Anything, mock.Anything).Maybe()
+	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything).Maybe()
+	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Maybe()
+
+	p := &Plugin{}
+	p.SetAPI(api)
+	p.botUserID = "bot-user-id"
+	p.store = store.New(api)
+	p.planeClient = plane.NewClient(server.URL, "test-api-key", "test-workspace")
+
+	// Set configuration for URL/workspace access
+	p.configuration = &configuration{
+		PlaneURL:       server.URL,
+		PlaneAPIKey:    "test-api-key",
+		PlaneWorkspace: "test-workspace",
+	}
+
+	return p, api, server
+}
+
 func TestPlaneMine(t *testing.T) {
-	t.Skip("TODO: implement after Plan 01-03 -- verify assigned tasks list with emoji formatting")
+	items := []plane.WorkItem{
+		{ID: "wi-1", Name: "Fix login bug", StateGroup: "started", StateName: "In Progress", Priority: "high", UpdatedAt: "2026-03-17T06:00:00Z"},
+		{ID: "wi-2", Name: "Add tests", StateGroup: "unstarted", StateName: "Todo", Priority: "medium", UpdatedAt: "2026-03-17T05:00:00Z"},
+		{ID: "wi-3", Name: "Deploy v2", StateGroup: "completed", StateName: "Done", Priority: "none", UpdatedAt: "2026-03-17T04:00:00Z"},
+	}
+
+	p, api, _ := setupMineStatusTestPlugin(t, items)
+
+	// Mock: user connected
+	mapping := &store.PlaneUserMapping{PlaneUserID: "plane-u1", PlaneEmail: "alice@example.com", PlaneDisplayName: "Alice"}
+	data, _ := json.Marshal(mapping)
+	api.On("KVGet", "user_plane_user-1").Return(data, nil)
+
+	args := &model.CommandArgs{
+		Command:   "/task plane mine",
+		UserId:    "user-1",
+		ChannelId: "channel-1",
+	}
+
+	resp, appErr := p.ExecuteCommand(nil, args)
+	require.Nil(t, appErr)
+	require.NotNil(t, resp)
+
+	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+		msg := post.Message
+		return strings.Contains(msg, "Your assigned tasks") &&
+			strings.Contains(msg, "Fix login bug") &&
+			strings.Contains(msg, "Add tests") &&
+			strings.Contains(msg, "Deploy v2") &&
+			strings.Contains(msg, ":large_blue_circle:") && // started emoji
+			strings.Contains(msg, ":white_circle:") && // unstarted emoji
+			strings.Contains(msg, ":white_check_mark:") && // completed emoji
+			strings.Contains(msg, "High :red_circle:") && // priority
+			strings.Contains(msg, "Open Plane")
+	}))
 }
 
 func TestPlaneMineNoTasks(t *testing.T) {
-	t.Skip("TODO: implement after Plan 01-03 -- verify empty state message")
+	p, api, _ := setupMineStatusTestPlugin(t, []plane.WorkItem{})
+
+	mapping := &store.PlaneUserMapping{PlaneUserID: "plane-u1", PlaneEmail: "alice@example.com", PlaneDisplayName: "Alice"}
+	data, _ := json.Marshal(mapping)
+	api.On("KVGet", "user_plane_user-1").Return(data, nil)
+
+	args := &model.CommandArgs{
+		Command:   "/task plane mine",
+		UserId:    "user-1",
+		ChannelId: "channel-1",
+	}
+
+	resp, appErr := p.ExecuteCommand(nil, args)
+	require.Nil(t, appErr)
+	require.NotNil(t, resp)
+
+	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+		return strings.Contains(post.Message, "no tasks assigned") &&
+			strings.Contains(post.Message, "/task plane create")
+	}))
 }
 
 func TestPlaneStatus(t *testing.T) {
-	t.Skip("TODO: implement after Plan 01-03 -- verify project summary with state counts and progress bar")
+	items := []plane.WorkItem{
+		{ID: "wi-1", Name: "Task 1", StateGroup: "backlog"},
+		{ID: "wi-2", Name: "Task 2", StateGroup: "unstarted"},
+		{ID: "wi-3", Name: "Task 3", StateGroup: "started"},
+		{ID: "wi-4", Name: "Task 4", StateGroup: "completed"},
+		{ID: "wi-5", Name: "Task 5", StateGroup: "completed"},
+	}
+
+	p, api, _ := setupMineStatusTestPlugin(t, items)
+
+	mapping := &store.PlaneUserMapping{PlaneUserID: "plane-u1", PlaneEmail: "alice@example.com", PlaneDisplayName: "Alice"}
+	data, _ := json.Marshal(mapping)
+	api.On("KVGet", "user_plane_user-1").Return(data, nil)
+
+	// Specify project name to avoid multi-project ambiguity
+	args := &model.CommandArgs{
+		Command:   "/task plane status Alpha",
+		UserId:    "user-1",
+		ChannelId: "channel-1",
+	}
+
+	resp, appErr := p.ExecuteCommand(nil, args)
+	require.Nil(t, appErr)
+	require.NotNil(t, resp)
+
+	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+		msg := post.Message
+		return strings.Contains(msg, "**Project: Alpha**") &&
+			strings.Contains(msg, "ALP") &&
+			strings.Contains(msg, ":white_circle: Open") &&
+			strings.Contains(msg, ":large_blue_circle: In Progress") &&
+			strings.Contains(msg, ":white_check_mark: Done") &&
+			strings.Contains(msg, "| 2 |") && // Open = backlog(1) + unstarted(1)
+			strings.Contains(msg, "| 1 |") && // In Progress
+			strings.Contains(msg, "Progress:") &&
+			strings.Contains(msg, "40%") && // 2 done / 5 total
+			strings.Contains(msg, "**Total:** 5 work items") &&
+			strings.Contains(msg, "Open in Plane")
+	}))
 }
 
 func TestPlaneStatusProjectSelection(t *testing.T) {
-	t.Skip("TODO: implement after Plan 01-03 -- verify project name/identifier matching")
+	p, api, _ := setupMineStatusTestPlugin(t, []plane.WorkItem{})
+
+	mapping := &store.PlaneUserMapping{PlaneUserID: "plane-u1", PlaneEmail: "alice@example.com", PlaneDisplayName: "Alice"}
+	data, _ := json.Marshal(mapping)
+	api.On("KVGet", "user_plane_user-1").Return(data, nil)
+
+	t.Run("matches by identifier", func(t *testing.T) {
+		args := &model.CommandArgs{
+			Command:   "/task plane status BET",
+			UserId:    "user-1",
+			ChannelId: "channel-1",
+		}
+		resp, appErr := p.ExecuteCommand(nil, args)
+		require.Nil(t, appErr)
+		require.NotNil(t, resp)
+
+		api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+			return strings.Contains(post.Message, "**Project: Beta**")
+		}))
+	})
+
+	t.Run("not found shows available", func(t *testing.T) {
+		args := &model.CommandArgs{
+			Command:   "/task plane status NonExistent",
+			UserId:    "user-1",
+			ChannelId: "channel-1",
+		}
+		resp, appErr := p.ExecuteCommand(nil, args)
+		require.Nil(t, appErr)
+		require.NotNil(t, resp)
+
+		api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+			return strings.Contains(post.Message, "no encontrado") &&
+				strings.Contains(post.Message, "Alpha") &&
+				strings.Contains(post.Message, "Beta")
+		}))
+	})
+
+	t.Run("no project specified with multiple projects", func(t *testing.T) {
+		args := &model.CommandArgs{
+			Command:   "/task plane status",
+			UserId:    "user-1",
+			ChannelId: "channel-1",
+		}
+		resp, appErr := p.ExecuteCommand(nil, args)
+		require.Nil(t, appErr)
+		require.NotNil(t, resp)
+
+		api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
+			return strings.Contains(post.Message, "Which project?") &&
+				strings.Contains(post.Message, "Alpha") &&
+				strings.Contains(post.Message, "Beta")
+		}))
+	})
 }

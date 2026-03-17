@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -11,6 +12,20 @@ import (
 	"github.com/klab/mattermost-plugin-mcc/server/plane"
 	"github.com/klab/mattermost-plugin-mcc/server/store"
 )
+
+// workItemWithProject pairs a work item with its project metadata for display.
+type workItemWithProject struct {
+	plane.WorkItem
+	ProjectName string
+	ProjectID   string
+}
+
+// sortWorkItemsByUpdated sorts work items by UpdatedAt descending (most recent first).
+func sortWorkItemsByUpdated(items []workItemWithProject) {
+	sort.Slice(items, func(i, j int) bool {
+		return items[i].UpdatedAt > items[j].UpdatedAt
+	})
+}
 
 const helpText = `**Task Management Commands**
 
@@ -98,15 +113,189 @@ func handlePlaneCreate(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 }
 
 // handlePlaneMine handles /task plane mine.
-// Stub: will be implemented in Plan 01-03.
+// Shows up to 10 tasks assigned to the current user across all projects.
 func handlePlaneMine(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArgs []string) *model.CommandResponse {
-	return p.respondEphemeral(args, "This command is not yet implemented. Coming in the next update.")
+	mapping, ok := requirePlaneConnection(p, args)
+	if !ok {
+		return &model.CommandResponse{}
+	}
+
+	if !p.planeClient.IsConfigured() {
+		return p.respondEphemeral(args,
+			"No se pudo conectar con Plane. Verifica la URL y configuracion en System Console.")
+	}
+
+	projects, err := p.planeClient.ListProjects()
+	if err != nil {
+		p.API.LogError("Failed to list projects for mine", "error", err.Error())
+		return p.respondEphemeral(args, "Error al comunicarse con Plane: "+err.Error()+". Intenta de nuevo.")
+	}
+	if len(projects) == 0 {
+		return p.respondEphemeral(args, "No se encontraron proyectos en tu workspace de Plane.")
+	}
+
+	// Fetch assigned work items from up to 5 projects
+	var allItems []workItemWithProject
+	maxProjects := 5
+	if len(projects) < maxProjects {
+		maxProjects = len(projects)
+	}
+	for _, proj := range projects[:maxProjects] {
+		items, err := p.planeClient.ListWorkItems(proj.ID, mapping.PlaneUserID)
+		if err != nil {
+			p.API.LogWarn("Failed to list work items for project", "project", proj.Name, "error", err.Error())
+			continue
+		}
+		for _, item := range items {
+			allItems = append(allItems, workItemWithProject{
+				WorkItem:    item,
+				ProjectName: proj.Name,
+				ProjectID:   proj.ID,
+			})
+		}
+	}
+
+	if len(allItems) == 0 {
+		return p.respondEphemeral(args,
+			"You have no tasks assigned in Plane. Create one with `/task plane create`!")
+	}
+
+	// Sort by UpdatedAt descending and limit to 10
+	sortWorkItemsByUpdated(allItems)
+	if len(allItems) > 10 {
+		allItems = allItems[:10]
+	}
+
+	// Format list
+	var sb strings.Builder
+	sb.WriteString("**Your assigned tasks:**\n\n")
+	for _, item := range allItems {
+		emoji := stateGroupEmoji(item.StateGroup)
+		pLabel := priorityLabel(item.Priority)
+		stateName := item.StateName
+		if stateName == "" {
+			stateName = item.StateGroup
+		}
+
+		line := fmt.Sprintf("%s **%s** -- %s", emoji, item.Name, item.ProjectName)
+		if pLabel != "" {
+			line += " · " + pLabel
+		}
+		line += " · " + stateName
+		sb.WriteString(line + "\n")
+	}
+
+	// Add footer link
+	cfg := p.getConfiguration()
+	planeBaseURL := strings.TrimRight(cfg.PlaneURL, "/")
+	workspace := cfg.PlaneWorkspace
+	sb.WriteString(fmt.Sprintf("\n---\n[Open Plane](%s/%s)", planeBaseURL, workspace))
+
+	return p.respondEphemeral(args, sb.String())
 }
 
 // handlePlaneStatus handles /task plane status [project].
-// Stub: will be implemented in Plan 01-03.
+// Shows project summary with Open/In Progress/Done counts and progress bar.
 func handlePlaneStatus(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArgs []string) *model.CommandResponse {
-	return p.respondEphemeral(args, "This command is not yet implemented. Coming in the next update.")
+	_, ok := requirePlaneConnection(p, args)
+	if !ok {
+		return &model.CommandResponse{}
+	}
+
+	if !p.planeClient.IsConfigured() {
+		return p.respondEphemeral(args,
+			"No se pudo conectar con Plane. Verifica la URL y configuracion en System Console.")
+	}
+
+	projects, err := p.planeClient.ListProjects()
+	if err != nil {
+		p.API.LogError("Failed to list projects for status", "error", err.Error())
+		return p.respondEphemeral(args, "Error al comunicarse con Plane: "+err.Error()+". Intenta de nuevo.")
+	}
+	if len(projects) == 0 {
+		return p.respondEphemeral(args, "No se encontraron proyectos en tu workspace de Plane.")
+	}
+
+	// Determine which project
+	var project *plane.Project
+	if len(subArgs) > 0 {
+		query := strings.Join(subArgs, " ")
+		project = findProjectByNameOrID(projects, query)
+		if project == nil {
+			var names []string
+			for _, p := range projects {
+				names = append(names, p.Name+" ("+p.Identifier+")")
+			}
+			return p.respondEphemeral(args, fmt.Sprintf(
+				"Proyecto '%s' no encontrado. Disponibles: %s",
+				query, strings.Join(names, ", ")))
+		}
+	} else if len(projects) == 1 {
+		project = &projects[0]
+	} else {
+		var names []string
+		for _, p := range projects {
+			names = append(names, p.Name+" ("+p.Identifier+")")
+		}
+		return p.respondEphemeral(args, fmt.Sprintf(
+			"Which project? Available: %s. Usage: `/task plane status {project}`",
+			strings.Join(names, ", ")))
+	}
+
+	// Fetch all work items for this project
+	workItems, err := p.planeClient.ListProjectWorkItems(project.ID)
+	if err != nil {
+		p.API.LogError("Failed to list work items for status", "error", err.Error())
+		return p.respondEphemeral(args, "Error al comunicarse con Plane: "+err.Error()+". Intenta de nuevo.")
+	}
+
+	// Group by state group
+	groupCounts := map[string]int{
+		"backlog":   0,
+		"unstarted": 0,
+		"started":   0,
+		"completed": 0,
+		"cancelled": 0,
+	}
+	for _, item := range workItems {
+		group := item.StateGroup
+		if group == "" {
+			group = "backlog"
+		}
+		groupCounts[group]++
+	}
+
+	open := groupCounts["backlog"] + groupCounts["unstarted"]
+	inProgress := groupCounts["started"]
+	done := groupCounts["completed"]
+	total := len(workItems)
+
+	// Calculate progress percentage
+	percent := 0
+	if total > 0 {
+		percent = (done * 100) / total
+	}
+
+	bar := progressBar(done, total, 20)
+
+	// Build project URL
+	cfg := p.getConfiguration()
+	planeBaseURL := strings.TrimRight(cfg.PlaneURL, "/")
+	workspace := cfg.PlaneWorkspace
+	projectURL := fmt.Sprintf("%s/%s/projects/%s/work-items/", planeBaseURL, workspace, project.ID)
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("**Project: %s** (%s)\n\n", project.Name, project.Identifier))
+	sb.WriteString("| Status | Count |\n")
+	sb.WriteString("|--------|-------|\n")
+	sb.WriteString(fmt.Sprintf("| :white_circle: Open | %d |\n", open))
+	sb.WriteString(fmt.Sprintf("| :large_blue_circle: In Progress | %d |\n", inProgress))
+	sb.WriteString(fmt.Sprintf("| :white_check_mark: Done | %d |\n\n", done))
+	sb.WriteString(fmt.Sprintf("**Progress:** %s %d%%\n", bar, percent))
+	sb.WriteString(fmt.Sprintf("**Total:** %d work items\n\n", total))
+	sb.WriteString(fmt.Sprintf("[Open in Plane](%s)", projectURL))
+
+	return p.respondEphemeral(args, sb.String())
 }
 
 // handleConnect handles /task connect.
