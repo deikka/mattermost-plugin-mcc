@@ -73,16 +73,6 @@ func (p *Plugin) ServeHTTP(c *plugin.Context, w http.ResponseWriter, r *http.Req
 	p.router.ServeHTTP(w, r)
 }
 
-// initAPI sets up HTTP routes for the plugin. Stub for now -- will be populated
-// with dialog and lookup endpoints in Plan 01-02.
-func (p *Plugin) initAPI() {
-	// Future endpoints:
-	// POST /api/v1/dialog/create-task  -- dialog submission handler
-	// GET  /api/v1/lookup/projects     -- dynamic select data source
-	// GET  /api/v1/lookup/members      -- dynamic select data source
-	// GET  /api/v1/lookup/labels       -- dynamic select data source
-}
-
 // validatePlaneConnection performs a non-blocking health check against the configured
 // Plane instance. If the connection fails, it notifies the system admin via DM from
 // the bot account. This never blocks plugin activation.
