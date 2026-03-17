@@ -8,6 +8,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 
+	"github.com/klab/mattermost-plugin-mcc/server/plane"
 	"github.com/klab/mattermost-plugin-mcc/server/store"
 )
 
@@ -31,9 +32,69 @@ func handleHelp(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArgs [
 }
 
 // handlePlaneCreate handles /task plane create [title].
-// Stub: will be implemented in Plan 01-03.
+// If subArgs are provided, performs quick inline creation with smart defaults.
+// If no subArgs, opens an interactive dialog with all fields.
 func handlePlaneCreate(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArgs []string) *model.CommandResponse {
-	return p.respondEphemeral(args, "This command is not yet implemented. Coming in the next update.")
+	mapping, ok := requirePlaneConnection(p, args)
+	if !ok {
+		return &model.CommandResponse{}
+	}
+
+	if !p.planeClient.IsConfigured() {
+		return p.respondEphemeral(args,
+			"No se pudo conectar con Plane. Verifica la URL y configuracion en System Console.")
+	}
+
+	// Quick inline mode: /task plane create Fix the login bug
+	if len(subArgs) > 0 {
+		title := strings.Join(subArgs, " ")
+		// Strip surrounding quotes if present
+		if len(title) >= 2 && ((title[0] == '"' && title[len(title)-1] == '"') || (title[0] == '\'' && title[len(title)-1] == '\'')) {
+			title = title[1 : len(title)-1]
+		}
+		title = strings.TrimSpace(title)
+		if title == "" {
+			return p.respondEphemeral(args, "Uso: `/task plane create Tu titulo aqui`")
+		}
+
+		// Get projects to find target project
+		projects, err := p.planeClient.ListProjects()
+		if err != nil {
+			p.API.LogError("Failed to list projects for inline create", "error", err.Error())
+			return p.respondEphemeral(args, "Error al comunicarse con Plane: "+err.Error()+". Intenta de nuevo.")
+		}
+		if len(projects) == 0 {
+			return p.respondEphemeral(args, "No se encontraron proyectos en tu workspace de Plane.")
+		}
+
+		// Use first project (if only one, it's the right one; if multiple, use default)
+		projectID := projects[0].ID
+		projectName := projects[0].Name
+
+		req := &plane.CreateWorkItemRequest{
+			Name:      title,
+			Priority:  "none",
+			Assignees: []string{mapping.PlaneUserID},
+		}
+
+		workItem, err := p.planeClient.CreateWorkItem(projectID, req)
+		if err != nil {
+			p.API.LogError("Failed to create work item inline", "error", err.Error())
+			return p.respondEphemeral(args, "Error al comunicarse con Plane: "+err.Error()+". Intenta de nuevo.")
+		}
+
+		workItemURL := p.planeClient.GetWorkItemURL(projectID, workItem.ID)
+		msg := formatTaskCreatedMessage(title, projectName, workItemURL)
+		return p.respondEphemeral(args, msg)
+	}
+
+	// Dialog mode: no arguments -- open interactive dialog
+	if err := openCreateTaskDialog(p, args.TriggerId, args.ChannelId, args.UserId); err != nil {
+		p.API.LogError("Failed to open create task dialog", "error", err.Error())
+		return p.respondEphemeral(args, "No se pudo abrir el dialogo de creacion. Intenta de nuevo.")
+	}
+
+	return &model.CommandResponse{}
 }
 
 // handlePlaneMine handles /task plane mine.
@@ -199,4 +260,71 @@ func requirePlaneConnection(p *Plugin, args *model.CommandArgs) (*store.PlaneUse
 		return nil, false
 	}
 	return mapping, true
+}
+
+// formatTaskCreatedMessage formats the task creation confirmation message.
+// Uses the exact format from CONTEXT.md specification.
+func formatTaskCreatedMessage(title, projectName, workItemURL string) string {
+	return fmt.Sprintf(":white_check_mark: Tarea creada: **%s** -- %s [Ver en Plane](%s)", title, projectName, workItemURL)
+}
+
+// stateGroupEmoji maps a Plane state group to its display emoji.
+func stateGroupEmoji(group string) string {
+	switch group {
+	case "backlog":
+		return ":inbox_tray:"
+	case "unstarted":
+		return ":white_circle:"
+	case "started":
+		return ":large_blue_circle:"
+	case "completed":
+		return ":white_check_mark:"
+	case "cancelled":
+		return ":no_entry_sign:"
+	default:
+		return ":white_circle:"
+	}
+}
+
+// priorityLabel maps a Plane priority string to a human-readable label with emoji.
+func priorityLabel(priority string) string {
+	switch strings.ToLower(priority) {
+	case "urgent":
+		return "Urgent :rotating_light:"
+	case "high":
+		return "High :red_circle:"
+	case "medium":
+		return "Medium :orange_circle:"
+	case "low":
+		return "Low :large_blue_circle:"
+	case "none", "":
+		return ""
+	default:
+		return priority
+	}
+}
+
+// progressBar returns an ASCII progress bar with the given fill ratio.
+// width is the number of characters for the bar content (inside brackets).
+func progressBar(done, total, width int) string {
+	if total == 0 {
+		return "[" + strings.Repeat("-", width) + "]"
+	}
+	filled := (done * width) / total
+	if filled > width {
+		filled = width
+	}
+	return "[" + strings.Repeat("=", filled) + strings.Repeat("-", width-filled) + "]"
+}
+
+// findProjectByNameOrID searches for a project matching a query by name or identifier.
+// Matching is case-insensitive.
+func findProjectByNameOrID(projects []plane.Project, query string) *plane.Project {
+	query = strings.ToLower(strings.TrimSpace(query))
+	for i, proj := range projects {
+		if strings.ToLower(proj.Name) == query || strings.ToLower(proj.Identifier) == query {
+			return &projects[i]
+		}
+	}
+	return nil
 }

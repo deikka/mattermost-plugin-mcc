@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/mattermost/mattermost/server/public/model"
 
+	"github.com/klab/mattermost-plugin-mcc/server/plane"
 	"github.com/klab/mattermost-plugin-mcc/server/store"
 )
 
@@ -176,9 +178,105 @@ func (p *Plugin) handleObsidianSetupDialog(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, http.StatusOK, map[string]interface{}{})
 }
 
-// handleCreateTaskDialog is a stub for the task creation dialog submission.
-// Will be implemented in Plan 01-03.
+// handleCreateTaskDialog processes the task creation dialog submission.
+// Validates fields, resolves label names to IDs, creates work item via Plane API,
+// and sends an ephemeral confirmation.
 func (p *Plugin) handleCreateTaskDialog(w http.ResponseWriter, r *http.Request) {
+	var request model.SubmitDialogRequest
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		writeError(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	title, _ := request.Submission["title"].(string)
+	description, _ := request.Submission["description"].(string)
+	projectID, _ := request.Submission["project_id"].(string)
+	priority, _ := request.Submission["priority"].(string)
+	assigneeID, _ := request.Submission["assignee_id"].(string)
+	labelsText, _ := request.Submission["labels"].(string)
+
+	// Validate title
+	title = strings.TrimSpace(title)
+	if title == "" {
+		writeJSON(w, http.StatusOK, map[string]map[string]string{
+			"errors": {
+				"title": "Title is required",
+			},
+		})
+		return
+	}
+
+	// Resolve label names to IDs
+	var labelIDs []string
+	if labelsText = strings.TrimSpace(labelsText); labelsText != "" {
+		labelNames := strings.Split(labelsText, ",")
+		projectLabels, err := p.planeClient.ListProjectLabels(projectID)
+		if err != nil {
+			p.API.LogWarn("Failed to fetch labels for resolution", "error", err.Error())
+		} else {
+			for _, name := range labelNames {
+				name = strings.TrimSpace(name)
+				if name == "" {
+					continue
+				}
+				matched := false
+				for _, label := range projectLabels {
+					if strings.EqualFold(label.Name, name) {
+						labelIDs = append(labelIDs, label.ID)
+						matched = true
+						break
+					}
+				}
+				if !matched {
+					p.API.LogWarn("Label not found, skipping", "label", name, "project", projectID)
+				}
+			}
+		}
+	}
+
+	// Build request
+	var assignees []string
+	if assigneeID != "" {
+		assignees = []string{assigneeID}
+	}
+	if priority == "" {
+		priority = "none"
+	}
+
+	req := &plane.CreateWorkItemRequest{
+		Name:        title,
+		Description: description,
+		Priority:    priority,
+		Assignees:   assignees,
+		Labels:      labelIDs,
+	}
+
+	workItem, err := p.planeClient.CreateWorkItem(projectID, req)
+	if err != nil {
+		p.API.LogError("Failed to create work item from dialog", "error", err.Error())
+		p.sendEphemeral(request.UserId, request.ChannelId,
+			"Error al comunicarse con Plane: "+err.Error()+". Intenta de nuevo.")
+		writeJSON(w, http.StatusOK, map[string]interface{}{})
+		return
+	}
+
+	// Find project name from cached projects
+	projectName := projectID
+	projects, err := p.planeClient.ListProjects()
+	if err == nil {
+		for _, proj := range projects {
+			if proj.ID == projectID {
+				projectName = proj.Name
+				break
+			}
+		}
+	}
+
+	workItemURL := p.planeClient.GetWorkItemURL(projectID, workItem.ID)
+	msg := formatTaskCreatedMessage(title, projectName, workItemURL)
+	p.sendEphemeral(request.UserId, request.ChannelId, msg)
+
+	// Return 200 with empty JSON to dismiss dialog
 	writeJSON(w, http.StatusOK, map[string]interface{}{})
 }
 

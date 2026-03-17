@@ -59,13 +59,19 @@ func (p *Plugin) OnActivate() error {
 	}
 
 	// Initialize HTTP router
-	p.router = mux.NewRouter()
-	p.initAPI()
+	p.initRouter()
 
 	// Non-blocking health check (don't block activation on external service)
 	go p.validatePlaneConnection()
 
 	return nil
+}
+
+// initRouter initializes the gorilla/mux router and registers all API routes.
+// Extracted from OnActivate so tests can call it independently.
+func (p *Plugin) initRouter() {
+	p.router = mux.NewRouter()
+	p.initAPI()
 }
 
 // ServeHTTP delegates HTTP requests to the plugin router.
