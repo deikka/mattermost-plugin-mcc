@@ -84,9 +84,20 @@ func handlePlaneCreate(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 			return p.respondEphemeral(args, "No se encontraron proyectos en tu workspace de Plane.")
 		}
 
-		// Use first project (if only one, it's the right one; if multiple, use default)
+		// Use first project as default
 		projectID := projects[0].ID
 		projectName := projects[0].Name
+		suffix := ""
+
+		// Check channel binding -- use bound project if available
+		binding, _ := p.store.GetChannelBinding(args.ChannelId)
+		if binding != nil {
+			if proj := findProjectByNameOrID(projects, binding.ProjectName); proj != nil {
+				projectID = proj.ID
+				projectName = proj.Name
+				suffix = fmt.Sprintf(" (Proyecto: %s)", projectName)
+			}
+		}
 
 		req := &plane.CreateWorkItemRequest{
 			Name:      title,
@@ -101,7 +112,7 @@ func handlePlaneCreate(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 		}
 
 		workItemURL := p.planeClient.GetWorkItemURL(projectID, workItem.ID)
-		msg := formatTaskCreatedMessage(title, projectName, workItemURL)
+		msg := formatTaskCreatedMessage(title, projectName, workItemURL) + suffix
 		return p.respondEphemeral(args, msg)
 	}
 
@@ -134,6 +145,23 @@ func handlePlaneMine(p *Plugin, c *plugin.Context, args *model.CommandArgs, subA
 	}
 	if len(projects) == 0 {
 		return p.respondEphemeral(args, "No se encontraron proyectos en tu workspace de Plane.")
+	}
+
+	// Check channel binding -- filter to bound project only
+	binding, _ := p.store.GetChannelBinding(args.ChannelId)
+	suffix := ""
+	if binding != nil {
+		var filtered []plane.Project
+		for _, proj := range projects {
+			if proj.ID == binding.ProjectID {
+				filtered = []plane.Project{proj}
+				break
+			}
+		}
+		if len(filtered) > 0 {
+			projects = filtered
+			suffix = fmt.Sprintf(" (Proyecto: %s)", binding.ProjectName)
+		}
 	}
 
 	// Fetch assigned work items from up to 5 projects
@@ -170,7 +198,7 @@ func handlePlaneMine(p *Plugin, c *plugin.Context, args *model.CommandArgs, subA
 
 	// Format list
 	var sb strings.Builder
-	sb.WriteString("**Your assigned tasks:**\n\n")
+	sb.WriteString("**Your assigned tasks:**" + suffix + "\n\n")
 	for _, item := range allItems {
 		emoji := stateGroupEmoji(item.StateGroup)
 		pLabel := priorityLabel(item.Priority)
@@ -218,9 +246,16 @@ func handlePlaneStatus(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 		return p.respondEphemeral(args, "No se encontraron proyectos en tu workspace de Plane.")
 	}
 
-	// Determine which project
+	// Check channel binding -- use bound project when no args specified
 	var project *plane.Project
-	if len(subArgs) > 0 {
+	binding, _ := p.store.GetChannelBinding(args.ChannelId)
+	if binding != nil && len(subArgs) == 0 {
+		if proj := findProjectByNameOrID(projects, binding.ProjectName); proj != nil {
+			project = proj
+		}
+	}
+
+	if project == nil && len(subArgs) > 0 {
 		query := strings.Join(subArgs, " ")
 		project = findProjectByNameOrID(projects, query)
 		if project == nil {
@@ -232,9 +267,9 @@ func handlePlaneStatus(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 				"Proyecto '%s' no encontrado. Disponibles: %s",
 				query, strings.Join(names, ", ")))
 		}
-	} else if len(projects) == 1 {
+	} else if project == nil && len(projects) == 1 {
 		project = &projects[0]
-	} else {
+	} else if project == nil {
 		var names []string
 		for _, p := range projects {
 			names = append(names, p.Name+" ("+p.Identifier+")")
@@ -286,8 +321,14 @@ func handlePlaneStatus(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 	workspace := cfg.PlaneWorkspace
 	projectURL := fmt.Sprintf("%s/%s/projects/%s/work-items/", planeBaseURL, workspace, project.ID)
 
+	// Build status suffix for binding indicator
+	bindingSuffix := ""
+	if binding != nil && len(subArgs) == 0 {
+		bindingSuffix = fmt.Sprintf(" (Proyecto: %s)", binding.ProjectName)
+	}
+
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("**Project: %s** (%s)\n\n", project.Name, project.Identifier))
+	sb.WriteString(fmt.Sprintf("**Project: %s** (%s)%s\n\n", project.Name, project.Identifier, bindingSuffix))
 	sb.WriteString("| Status | Count |\n")
 	sb.WriteString("|--------|-------|\n")
 	sb.WriteString(fmt.Sprintf("| :white_circle: Open | %d |\n", open))

@@ -229,6 +229,7 @@ func TestMessageHasBeenPostedAPIError(t *testing.T) {
 	api.On("LogInfo", mock.Anything, mock.Anything, mock.Anything).Maybe()
 	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything).Maybe()
 	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
+	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Maybe()
 
 	p := &Plugin{}
@@ -253,5 +254,5 @@ func TestMessageHasBeenPostedAPIError(t *testing.T) {
 
 	api.AssertNotCalled(t, "CreatePost", mock.Anything)
 	api.AssertCalled(t, "LogWarn", "Failed to fetch work item for unfurl",
-		mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+		mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything)
 }

@@ -79,3 +79,75 @@ func buildWorkItemAttachment(item *plane.WorkItem, planeURL, workspace, projectI
 		Footer:    "Plane",
 	}
 }
+
+// handleLinkUnfurl processes a posted message for Plane URL unfurling.
+// Called by MessageHasBeenPosted. Creates a bot reply with a rich preview
+// card for the first detected Plane work item URL.
+func (p *Plugin) handleLinkUnfurl(post *model.Post) {
+	// Skip bot posts to avoid infinite loops
+	if post.UserId == p.botUserID {
+		return
+	}
+
+	cfg := p.getConfiguration()
+	if cfg.PlaneURL == "" || cfg.PlaneWorkspace == "" {
+		return
+	}
+
+	// Extract Plane work item URLs
+	urls := extractPlaneWorkItemURLs(post.Message, cfg.PlaneURL, cfg.PlaneWorkspace)
+	if len(urls) == 0 {
+		return
+	}
+
+	// Process only the first URL to avoid spam
+	match := urls[0]
+
+	// Fetch work item details using global API key
+	workItem, err := p.planeClient.GetWorkItem(match.ProjectID, match.WorkItemID)
+	if err != nil {
+		p.API.LogWarn("Failed to fetch work item for unfurl",
+			"projectID", match.ProjectID,
+			"workItemID", match.WorkItemID,
+			"error", err.Error())
+		return
+	}
+
+	// Resolve assignee name from workspace members cache if possible
+	if len(workItem.Assignees) > 0 {
+		members, err := p.planeClient.ListWorkspaceMembers()
+		if err == nil {
+			for _, m := range members {
+				if m.Member.ID == workItem.Assignees[0] {
+					name := m.Member.DisplayName
+					if name == "" {
+						name = strings.TrimSpace(m.Member.FirstName + " " + m.Member.LastName)
+					}
+					if name == "" {
+						name = m.Member.Email
+					}
+					workItem.AssigneeName = name
+					break
+				}
+			}
+		}
+	}
+
+	// Build attachment
+	attachment := buildWorkItemAttachment(workItem, cfg.PlaneURL, cfg.PlaneWorkspace, match.ProjectID)
+
+	// Create bot reply with attachment
+	replyPost := &model.Post{
+		UserId:    p.botUserID,
+		ChannelId: post.ChannelId,
+		RootId:    post.Id,
+		Message:   "",
+	}
+	model.ParseSlackAttachment(replyPost, []*model.SlackAttachment{attachment})
+
+	if _, appErr := p.API.CreatePost(replyPost); appErr != nil {
+		p.API.LogWarn("Failed to create unfurl reply",
+			"postID", post.Id,
+			"error", appErr.Error())
+	}
+}

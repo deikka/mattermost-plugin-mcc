@@ -161,6 +161,12 @@ func (p *Plugin) notifyAdminPlaneError(planeURL string) {
 	}
 }
 
+// MessageHasBeenPosted is invoked after a message has been posted.
+// Used for link unfurling of Plane work item URLs.
+func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
+	p.handleLinkUnfurl(post)
+}
+
 func main() {
 	plugin.ClientMain(&Plugin{})
 }

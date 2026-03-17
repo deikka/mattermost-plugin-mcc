@@ -628,6 +628,10 @@ func setupMineStatusTestPlugin(t *testing.T, workItems []plane.WorkItem) (*Plugi
 	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything).Maybe()
 	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Maybe()
+	// Channel binding lookups (no binding by default)
+	api.On("KVGet", mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, "channel_project_")
+	})).Return(nil, nil).Maybe()
 
 	p := &Plugin{}
 	p.SetAPI(api)
@@ -658,6 +662,7 @@ func TestPlaneMine(t *testing.T) {
 	mapping := &store.PlaneUserMapping{PlaneUserID: "plane-u1", PlaneEmail: "alice@example.com", PlaneDisplayName: "Alice"}
 	data, _ := json.Marshal(mapping)
 	api.On("KVGet", "user_plane_user-1").Return(data, nil)
+	api.On("KVGet", "channel_project_channel-1").Return(nil, nil).Maybe()
 
 	args := &model.CommandArgs{
 		Command:   "/task plane mine",
@@ -689,6 +694,7 @@ func TestPlaneMineNoTasks(t *testing.T) {
 	mapping := &store.PlaneUserMapping{PlaneUserID: "plane-u1", PlaneEmail: "alice@example.com", PlaneDisplayName: "Alice"}
 	data, _ := json.Marshal(mapping)
 	api.On("KVGet", "user_plane_user-1").Return(data, nil)
+	api.On("KVGet", "channel_project_channel-1").Return(nil, nil).Maybe()
 
 	args := &model.CommandArgs{
 		Command:   "/task plane mine",
@@ -720,6 +726,7 @@ func TestPlaneStatus(t *testing.T) {
 	mapping := &store.PlaneUserMapping{PlaneUserID: "plane-u1", PlaneEmail: "alice@example.com", PlaneDisplayName: "Alice"}
 	data, _ := json.Marshal(mapping)
 	api.On("KVGet", "user_plane_user-1").Return(data, nil)
+	api.On("KVGet", "channel_project_channel-1").Return(nil, nil).Maybe()
 
 	// Specify project name to avoid multi-project ambiguity
 	args := &model.CommandArgs{
@@ -754,6 +761,7 @@ func TestPlaneStatusProjectSelection(t *testing.T) {
 	mapping := &store.PlaneUserMapping{PlaneUserID: "plane-u1", PlaneEmail: "alice@example.com", PlaneDisplayName: "Alice"}
 	data, _ := json.Marshal(mapping)
 	api.On("KVGet", "user_plane_user-1").Return(data, nil)
+	api.On("KVGet", "channel_project_channel-1").Return(nil, nil).Maybe()
 
 	t.Run("matches by identifier", func(t *testing.T) {
 		args := &model.CommandArgs{
