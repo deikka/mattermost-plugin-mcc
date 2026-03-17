@@ -45,11 +45,13 @@ Plans:
   2. Usuario puede crear tarea desde el menu contextual "..." de cualquier mensaje, con el texto pre-poblado como descripcion y permalink al mensaje original
   3. Al crear tarea en canal vinculado (via slash command o menu contextual), el proyecto Plane se pre-selecciona automaticamente
   4. Al pegar una URL de tarea de Plane en chat, se muestra preview inline con titulo, estado y asignado
-**Plans**: TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
+- [ ] 02-00-PLAN.md — Wave 0: Test stubs for Phase 2 (store binding, command handlers, link unfurling, GetWorkItem)
+- [ ] 02-01-PLAN.md — Channel-project binding (store CRUD, link/unlink commands, binding-aware handlers, dialog pre-selection)
+- [ ] 02-02-PLAN.md — Link unfurling (GetWorkItem API, URL extraction, MessageHasBeenPosted hook, SlackAttachment cards)
+- [ ] 02-03-PLAN.md — Context menu "Create Task from Message" (webapp component, server handler, build setup, end-to-end verification)
 
 ### Phase 3: Notifications + Automation
 **Goal**: Cambios en Plane se reflejan automaticamente en Mattermost, cerrando el ciclo de feedback sin que el equipo tenga que revisar Plane manualmente
@@ -71,5 +73,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation + Core Plane Commands | 4/4 | Complete | 2026-03-17 |
-| 2. Channel Intelligence + Context Menu | 0/2 | Not started | - |
+| 2. Channel Intelligence + Context Menu | 0/4 | In progress | - |
 | 3. Notifications + Automation | 0/1 | Not started | - |
