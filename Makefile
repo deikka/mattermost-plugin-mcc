@@ -14,6 +14,7 @@ GOARCH_ARM64 = arm64
 build:
 	mkdir -p server/dist
 	GOOS=$(GOOS_LINUX) GOARCH=$(GOARCH_AMD64) $(GO) build -o server/dist/plugin-linux-amd64 ./server
+	GOOS=$(GOOS_LINUX) GOARCH=$(GOARCH_ARM64) $(GO) build -o server/dist/plugin-linux-arm64 ./server
 	GOOS=$(GOOS_DARWIN) GOARCH=$(GOARCH_AMD64) $(GO) build -o server/dist/plugin-darwin-amd64 ./server
 	GOOS=$(GOOS_DARWIN) GOARCH=$(GOARCH_ARM64) $(GO) build -o server/dist/plugin-darwin-arm64 ./server
 

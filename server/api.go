@@ -91,13 +91,13 @@ func (p *Plugin) handleSelectMembers(w http.ResponseWriter, r *http.Request) {
 
 	options := make([]selectOption, 0, len(members))
 	for _, m := range members {
-		displayName := m.Member.DisplayName
+		displayName := m.DisplayName
 		if displayName == "" {
-			displayName = m.Member.Email
+			displayName = m.Email
 		}
 		options = append(options, selectOption{
 			Text:  displayName,
-			Value: m.Member.ID,
+			Value: m.ID,
 		})
 	}
 
@@ -263,19 +263,21 @@ func (p *Plugin) handleCreateTaskDialog(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	// Find project name from cached projects
+	// Find project name and identifier from cached projects
 	projectName := projectID
+	projectIdentifier := ""
 	projects, err := p.planeClient.ListProjects()
 	if err == nil {
 		for _, proj := range projects {
 			if proj.ID == projectID {
 				projectName = proj.Name
+				projectIdentifier = proj.Identifier
 				break
 			}
 		}
 	}
 
-	workItemURL := p.planeClient.GetWorkItemURL(projectID, workItem.ID)
+	workItemURL := p.planeClient.GetWorkItemURL(projectIdentifier, workItem.SequenceID)
 	msg := formatTaskCreatedMessage(title, projectName, workItemURL)
 	p.sendEphemeral(request.UserId, request.ChannelId, msg)
 

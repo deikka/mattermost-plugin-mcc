@@ -57,20 +57,15 @@ type Label struct {
 	Color string `json:"color"`
 }
 
-// Member represents a workspace or project member's user details.
-type Member struct {
+// MemberWrapper represents a member in workspace/project members API responses.
+// Plane API returns flat objects with fields at the top level.
+type MemberWrapper struct {
 	ID          string `json:"id"`
 	Email       string `json:"email"`
 	DisplayName string `json:"display_name"`
 	FirstName   string `json:"first_name"`
 	LastName    string `json:"last_name"`
-}
-
-// MemberWrapper wraps a member in the workspace/project members response format.
-type MemberWrapper struct {
-	ID     string `json:"id"`
-	Member Member `json:"member"`
-	Role   int    `json:"role"`
+	Role        int    `json:"role"`
 }
 
 // PaginatedResponse wraps Plane API paginated results.

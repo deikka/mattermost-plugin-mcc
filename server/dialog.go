@@ -58,13 +58,13 @@ func openCreateTaskDialogWithContext(p *Plugin, triggerID, channelID, userID, pr
 	} else {
 		assigneeOptions = make([]*model.PostActionOptions, 0, len(members))
 		for _, m := range members {
-			displayName := m.Member.DisplayName
+			displayName := m.DisplayName
 			if displayName == "" {
-				displayName = m.Member.Email
+				displayName = m.Email
 			}
 			assigneeOptions = append(assigneeOptions, &model.PostActionOptions{
 				Text:  displayName,
-				Value: m.Member.ID,
+				Value: m.ID,
 			})
 		}
 	}
@@ -87,7 +87,7 @@ func openCreateTaskDialogWithContext(p *Plugin, triggerID, channelID, userID, pr
 		URL:       callbackURL,
 		Dialog: model.Dialog{
 			CallbackId: "create_task",
-			Title:      "Create Task in Plane",
+			Title:      "Crear Tarea en Plane",
 			Elements: []model.DialogElement{
 				{
 					DisplayName: "Title",
@@ -144,7 +144,7 @@ func openCreateTaskDialogWithContext(p *Plugin, triggerID, channelID, userID, pr
 					Placeholder: "bug, frontend, urgent",
 				},
 			},
-			SubmitLabel:    "Create Task",
+			SubmitLabel:    "Crear Tarea",
 			NotifyOnCancel: false,
 		},
 	}

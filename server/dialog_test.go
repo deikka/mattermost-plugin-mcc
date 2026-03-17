@@ -32,8 +32,8 @@ func newPlaneCreateTestPlugin(t *testing.T) (*Plugin, *plugintest.API, *httptest
 			w.WriteHeader(http.StatusOK)
 			resp := map[string]interface{}{
 				"results": []plane.MemberWrapper{
-					{ID: "mw1", Member: plane.Member{ID: "plane-u1", Email: "alice@example.com", DisplayName: "Alice Smith"}},
-					{ID: "mw2", Member: plane.Member{ID: "plane-u2", Email: "bob@example.com", DisplayName: "Bob Jones"}},
+					{ID: "plane-u1", Email: "alice@example.com", DisplayName: "Alice Smith"},
+					{ID: "plane-u2", Email: "bob@example.com", DisplayName: "Bob Jones"},
 				},
 			}
 			_ = json.NewEncoder(w).Encode(resp)
@@ -134,7 +134,7 @@ func TestCreateTask(t *testing.T) {
 		for _, e := range d.Elements {
 			names[e.Name] = true
 		}
-		return d.Title == "Create Task in Plane" &&
+		return d.Title == "Crear Tarea en Plane" &&
 			d.CallbackId == "create_task" &&
 			names["title"] && names["description"] && names["project_id"] &&
 			names["priority"] && names["assignee_id"] && names["labels"]

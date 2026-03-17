@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/mattermost/mattermost/server/public/model"
@@ -10,35 +11,33 @@ import (
 	"github.com/klab/mattermost-plugin-mcc/server/plane"
 )
 
-// planeURLMatch holds the extracted project and work item IDs from a Plane URL.
+// planeURLMatch holds the extracted identifier and sequence from a Plane browse URL.
 type planeURLMatch struct {
-	ProjectID  string
-	WorkItemID string
+	Identifier string // e.g. "TENDERIO"
+	SequenceID int    // e.g. 1
 }
 
 // extractPlaneWorkItemURLs finds Plane work item URLs in a message.
-// Returns matches with project ID and work item ID extracted.
-// The planeURL and workspace are used to build the expected URL pattern.
+// Detects the browse URL format: {planeURL}/{workspace}/browse/{IDENTIFIER}-{N}
 func extractPlaneWorkItemURLs(message, planeURL, workspace string) []planeURLMatch {
 	escapedBase := regexp.QuoteMeta(strings.TrimRight(planeURL, "/"))
 	escapedWS := regexp.QuoteMeta(workspace)
-	uuidPattern := `[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`
-	pattern := fmt.Sprintf(`%s/%s/projects/(%s)/work-items/(%s)`,
-		escapedBase, escapedWS, uuidPattern, uuidPattern)
+	pattern := fmt.Sprintf(`%s/%s/browse/([A-Z][A-Z0-9_]*)-(\d+)`,
+		escapedBase, escapedWS)
 	re := regexp.MustCompile(pattern)
 	matches := re.FindAllStringSubmatch(message, -1)
 	var results []planeURLMatch
 	for _, m := range matches {
 		if len(m) >= 3 {
-			results = append(results, planeURLMatch{ProjectID: m[1], WorkItemID: m[2]})
+			seqID, _ := strconv.Atoi(m[2])
+			results = append(results, planeURLMatch{Identifier: m[1], SequenceID: seqID})
 		}
 	}
 	return results
 }
 
 // buildWorkItemAttachment creates a SlackAttachment card for a Plane work item.
-// Used by link unfurling to show a rich preview of the work item.
-func buildWorkItemAttachment(item *plane.WorkItem, planeURL, workspace, projectID string) *model.SlackAttachment {
+func buildWorkItemAttachment(item *plane.WorkItem, planeURL, workspace, identifier string, sequenceID int) *model.SlackAttachment {
 	stateEmoji := stateGroupEmoji(item.StateGroup)
 	pLabel := priorityLabel(item.Priority)
 	stateName := item.StateName
@@ -46,29 +45,27 @@ func buildWorkItemAttachment(item *plane.WorkItem, planeURL, workspace, projectI
 		stateName = item.StateGroup
 	}
 
-	workItemURL := fmt.Sprintf("%s/%s/projects/%s/work-items/%s",
-		strings.TrimRight(planeURL, "/"), workspace, projectID, item.ID)
+	workItemURL := fmt.Sprintf("%s/%s/browse/%s-%d",
+		strings.TrimRight(planeURL, "/"), workspace, identifier, sequenceID)
 
 	projectName := item.ProjectName
 	if projectName == "" {
-		projectName = projectID
+		projectName = identifier
 	}
 
 	fields := []*model.SlackAttachmentField{
-		{Title: "Status", Value: stateEmoji + " " + stateName, Short: true},
-		{Title: "Priority", Value: pLabel, Short: true},
+		{Title: "Estado", Value: stateEmoji + " " + stateName, Short: true},
+		{Title: "Prioridad", Value: pLabel, Short: true},
 	}
 
-	// Add assignee if available (resolved by caller)
 	if item.AssigneeName != "" {
 		fields = append(fields, &model.SlackAttachmentField{
-			Title: "Assigned", Value: item.AssigneeName, Short: true,
+			Title: "Asignado", Value: item.AssigneeName, Short: true,
 		})
 	}
 
-	// Add project name
 	fields = append(fields, &model.SlackAttachmentField{
-		Title: "Project", Value: projectName, Short: true,
+		Title: "Proyecto", Value: projectName, Short: true,
 	})
 
 	return &model.SlackAttachment{
@@ -81,10 +78,7 @@ func buildWorkItemAttachment(item *plane.WorkItem, planeURL, workspace, projectI
 }
 
 // handleLinkUnfurl processes a posted message for Plane URL unfurling.
-// Called by MessageHasBeenPosted. Creates a bot reply with a rich preview
-// card for the first detected Plane work item URL.
 func (p *Plugin) handleLinkUnfurl(post *model.Post) {
-	// Skip bot posts to avoid infinite loops
 	if post.UserId == p.botUserID {
 		return
 	}
@@ -94,37 +88,54 @@ func (p *Plugin) handleLinkUnfurl(post *model.Post) {
 		return
 	}
 
-	// Extract Plane work item URLs
 	urls := extractPlaneWorkItemURLs(post.Message, cfg.PlaneURL, cfg.PlaneWorkspace)
 	if len(urls) == 0 {
 		return
 	}
 
-	// Process only the first URL to avoid spam
 	match := urls[0]
 
-	// Fetch work item details using global API key
-	workItem, err := p.planeClient.GetWorkItem(match.ProjectID, match.WorkItemID)
+	// Find project by identifier to get its UUID
+	projects, err := p.planeClient.ListProjects()
+	if err != nil {
+		p.API.LogWarn("Failed to list projects for unfurl", "error", err.Error())
+		return
+	}
+
+	var projectID string
+	for _, proj := range projects {
+		if strings.EqualFold(proj.Identifier, match.Identifier) {
+			projectID = proj.ID
+			break
+		}
+	}
+	if projectID == "" {
+		p.API.LogWarn("Project not found for unfurl", "identifier", match.Identifier)
+		return
+	}
+
+	// Fetch work item by sequence ID
+	workItem, err := p.planeClient.GetWorkItemBySequence(projectID, match.SequenceID)
 	if err != nil {
 		p.API.LogWarn("Failed to fetch work item for unfurl",
-			"projectID", match.ProjectID,
-			"workItemID", match.WorkItemID,
+			"identifier", match.Identifier,
+			"sequenceID", match.SequenceID,
 			"error", err.Error())
 		return
 	}
 
-	// Resolve assignee name from workspace members cache if possible
+	// Resolve assignee name
 	if len(workItem.Assignees) > 0 {
 		members, err := p.planeClient.ListWorkspaceMembers()
 		if err == nil {
 			for _, m := range members {
-				if m.Member.ID == workItem.Assignees[0] {
-					name := m.Member.DisplayName
+				if m.ID == workItem.Assignees[0] {
+					name := m.DisplayName
 					if name == "" {
-						name = strings.TrimSpace(m.Member.FirstName + " " + m.Member.LastName)
+						name = strings.TrimSpace(m.FirstName + " " + m.LastName)
 					}
 					if name == "" {
-						name = m.Member.Email
+						name = m.Email
 					}
 					workItem.AssigneeName = name
 					break
@@ -133,10 +144,8 @@ func (p *Plugin) handleLinkUnfurl(post *model.Post) {
 		}
 	}
 
-	// Build attachment
-	attachment := buildWorkItemAttachment(workItem, cfg.PlaneURL, cfg.PlaneWorkspace, match.ProjectID)
+	attachment := buildWorkItemAttachment(workItem, cfg.PlaneURL, cfg.PlaneWorkspace, match.Identifier, match.SequenceID)
 
-	// Create bot reply with attachment
 	replyPost := &model.Post{
 		UserId:    p.botUserID,
 		ChannelId: post.ChannelId,

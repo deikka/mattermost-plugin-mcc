@@ -76,6 +76,36 @@ func (c *Client) GetWorkItem(projectID, workItemID string) (*WorkItem, error) {
 	return &workItem, nil
 }
 
+// GetWorkItemBySequence fetches a work item by its sequence ID (e.g. PROJ-42 → sequence 42).
+// Lists work items filtered by sequence_id and returns the first match.
+func (c *Client) GetWorkItemBySequence(projectID string, sequenceID int) (*WorkItem, error) {
+	path := fmt.Sprintf("/projects/%s/work-items/?sequence_id=%d&expand=state_detail,project_detail", projectID, sequenceID)
+	resp, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get work item by sequence: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, parseAPIError(resp)
+	}
+
+	var paginated PaginatedResponse
+	if err := json.NewDecoder(resp.Body).Decode(&paginated); err != nil {
+		return nil, fmt.Errorf("decode work item response: %w", err)
+	}
+
+	var workItems []WorkItem
+	if err := json.Unmarshal(paginated.Results, &workItems); err != nil {
+		return nil, fmt.Errorf("unmarshal work items: %w", err)
+	}
+
+	if len(workItems) == 0 {
+		return nil, fmt.Errorf("work item %d not found in project %s", sequenceID, projectID)
+	}
+	return &workItems[0], nil
+}
+
 // ListProjectWorkItems returns ALL work items in a project (no assignee filter).
 // Used by /task plane status for project-wide counts.
 // No caching -- always returns fresh data.

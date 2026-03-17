@@ -138,14 +138,10 @@ func (c *Client) ListProjectMembers(projectID string) ([]MemberWrapper, error) {
 		return nil, parseAPIError(resp)
 	}
 
-	var paginated PaginatedResponse
-	if err := json.NewDecoder(resp.Body).Decode(&paginated); err != nil {
-		return nil, fmt.Errorf("decode members response: %w", err)
-	}
-
+	// Project members return as a direct array (not paginated)
 	var members []MemberWrapper
-	if err := json.Unmarshal(paginated.Results, &members); err != nil {
-		return nil, fmt.Errorf("unmarshal members: %w", err)
+	if err := json.NewDecoder(resp.Body).Decode(&members); err != nil {
+		return nil, fmt.Errorf("decode project members: %w", err)
 	}
 
 	c.cache.Set(cacheKey, members, cacheTTLMembers)

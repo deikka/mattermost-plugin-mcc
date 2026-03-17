@@ -84,7 +84,7 @@ func TestHelpCommand(t *testing.T) {
 
 	// Verify ephemeral post was sent with help text content
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "Task Management Commands") &&
+		return strings.Contains(post.Message, "Comandos de Gestion de Tareas") &&
 			strings.Contains(post.Message, "/task plane create") &&
 			strings.Contains(post.Message, "/task plane mine") &&
 			strings.Contains(post.Message, "/task plane status") &&
@@ -114,7 +114,7 @@ func TestHelpCommandOnBareTask(t *testing.T) {
 	require.NotNil(t, resp)
 
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "Task Management Commands")
+		return strings.Contains(post.Message, "Comandos de Gestion de Tareas")
 	}))
 }
 
@@ -127,22 +127,22 @@ func TestCommandRouting(t *testing.T) {
 		{
 			name:    "plane create routes to handlePlaneCreate",
 			command: "/task plane create",
-			expect:  "haven't linked",
+			expect:  "no has vinculado",
 		},
 		{
 			name:    "plane mine routes to handlePlaneMine",
 			command: "/task plane mine",
-			expect:  "haven't linked",
+			expect:  "no has vinculado",
 		},
 		{
 			name:    "plane status routes to handlePlaneStatus",
 			command: "/task plane status",
-			expect:  "haven't linked",
+			expect:  "no has vinculado",
 		},
 		{
 			name:    "help routes to handleHelp",
 			command: "/task help",
-			expect:  "Task Management Commands",
+			expect:  "Comandos de Gestion de Tareas",
 		},
 	}
 
@@ -180,7 +180,7 @@ func TestCommandRoutingConnect(t *testing.T) {
 	require.NotNil(t, resp)
 
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "Plane is not configured")
+		return strings.Contains(post.Message, "Plane no esta configurado")
 	}))
 }
 
@@ -205,7 +205,7 @@ func TestCommandRoutingObsidianSetup(t *testing.T) {
 
 	// Should get error about dialog failing
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "Could not open the configuration dialog")
+		return strings.Contains(post.Message, "No se pudo abrir el dialogo de configuracion")
 	}))
 }
 
@@ -227,7 +227,7 @@ func TestCommandRoutingWithArgs(t *testing.T) {
 
 	// Should route to handlePlaneCreate which requires connection
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "haven't linked")
+		return strings.Contains(post.Message, "no has vinculado")
 	}))
 }
 
@@ -244,17 +244,17 @@ func TestCommandAliases(t *testing.T) {
 		{
 			name:     "p/c maps to plane/create",
 			alias:    "/task p c",
-			expected: "haven't linked",
+			expected: "no has vinculado",
 		},
 		{
 			name:     "p/m maps to plane/mine",
 			alias:    "/task p m",
-			expected: "haven't linked",
+			expected: "no has vinculado",
 		},
 		{
 			name:     "p/s maps to plane/status",
 			alias:    "/task p s",
-			expected: "haven't linked",
+			expected: "no has vinculado",
 		},
 	}
 
@@ -294,7 +294,7 @@ func TestCommandAliasesWithArgs(t *testing.T) {
 	require.NotNil(t, resp)
 
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "haven't linked")
+		return strings.Contains(post.Message, "no has vinculado")
 	}))
 }
 
@@ -378,8 +378,8 @@ func TestConnectCommand(t *testing.T) {
 			// Workspace members endpoint
 			w.WriteHeader(http.StatusOK)
 			members := []plane.MemberWrapper{
-				{Member: plane.Member{ID: "plane-u1", Email: "alice@example.com", DisplayName: "Alice Smith"}},
-				{Member: plane.Member{ID: "plane-u2", Email: "bob@example.com", DisplayName: "Bob Jones"}},
+				{ID: "plane-u1", Email: "alice@example.com", DisplayName: "Alice Smith"},
+				{ID: "plane-u2", Email: "bob@example.com", DisplayName: "Bob Jones"},
 			}
 			_ = json.NewEncoder(w).Encode(members)
 		})
@@ -406,7 +406,7 @@ func TestConnectCommand(t *testing.T) {
 
 		// Verify success message
 		api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-			return strings.Contains(post.Message, "Connected!") &&
+			return strings.Contains(post.Message, "Conectado!") &&
 				strings.Contains(post.Message, "Alice Smith") &&
 				strings.Contains(post.Message, "alice@example.com")
 		}))
@@ -424,7 +424,7 @@ func TestConnectCommand(t *testing.T) {
 		p, api, _ := setupConnectTestPlugin(t, func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
 			members := []plane.MemberWrapper{
-				{Member: plane.Member{ID: "plane-u1", Email: "other@example.com", DisplayName: "Other"}},
+				{ID: "plane-u1", Email: "other@example.com", DisplayName: "Other"},
 			}
 			_ = json.NewEncoder(w).Encode(members)
 		})
@@ -446,7 +446,7 @@ func TestConnectCommand(t *testing.T) {
 		require.NotNil(t, resp)
 
 		api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-			return strings.Contains(post.Message, "Could not find a Plane account") &&
+			return strings.Contains(post.Message, "No se encontro una cuenta de Plane") &&
 				strings.Contains(post.Message, "alice@example.com")
 		}))
 	})
@@ -466,7 +466,7 @@ func TestConnectCommand(t *testing.T) {
 		require.NotNil(t, resp)
 
 		api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-			return strings.Contains(post.Message, "Plane is not configured")
+			return strings.Contains(post.Message, "Plane no esta configurado")
 		}))
 	})
 }
@@ -498,7 +498,7 @@ func TestConnectAlreadyConnected(t *testing.T) {
 	require.NotNil(t, resp)
 
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "already linked") &&
+		return strings.Contains(post.Message, "ya esta vinculada") &&
 			strings.Contains(post.Message, "Alice Smith") &&
 			strings.Contains(post.Message, "alice@example.com")
 	}))
@@ -509,7 +509,7 @@ func TestObsidianSetup(t *testing.T) {
 
 	// Mock dialog opening
 	api.On("OpenInteractiveDialog", mock.MatchedBy(func(req model.OpenDialogRequest) bool {
-		return req.Dialog.Title == "Configure Obsidian REST API" &&
+		return req.Dialog.Title == "Configurar Obsidian REST API" &&
 			len(req.Dialog.Elements) == 3 &&
 			req.Dialog.Elements[0].Name == "host" &&
 			req.Dialog.Elements[1].Name == "port" &&
@@ -573,7 +573,7 @@ func TestRequirePlaneConnection(t *testing.T) {
 
 		// Verify guidance message sent
 		api.AssertCalled(t, "SendEphemeralPost", "user-2", mock.MatchedBy(func(post *model.Post) bool {
-			return strings.Contains(post.Message, "haven't linked your Plane account") &&
+			return strings.Contains(post.Message, "no has vinculado tu cuenta de Plane") &&
 				strings.Contains(post.Message, "/task connect")
 		}))
 	})
@@ -672,7 +672,7 @@ func TestPlaneMine(t *testing.T) {
 
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
 		msg := post.Message
-		return strings.Contains(msg, "Your assigned tasks") &&
+		return strings.Contains(msg, "Tus tareas asignadas") &&
 			strings.Contains(msg, "Fix login bug") &&
 			strings.Contains(msg, "Add tests") &&
 			strings.Contains(msg, "Deploy v2") &&
@@ -680,7 +680,7 @@ func TestPlaneMine(t *testing.T) {
 			strings.Contains(msg, ":white_circle:") && // unstarted emoji
 			strings.Contains(msg, ":white_check_mark:") && // completed emoji
 			strings.Contains(msg, "High :red_circle:") && // priority
-			strings.Contains(msg, "Open Plane")
+			strings.Contains(msg, "Abrir Plane")
 	}))
 }
 
@@ -703,7 +703,7 @@ func TestPlaneMineNoTasks(t *testing.T) {
 	require.NotNil(t, resp)
 
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "no tasks assigned") &&
+		return strings.Contains(post.Message, "No tienes tareas asignadas") &&
 			strings.Contains(post.Message, "/task plane create")
 	}))
 }
@@ -737,17 +737,17 @@ func TestPlaneStatus(t *testing.T) {
 
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
 		msg := post.Message
-		return strings.Contains(msg, "**Project: Alpha**") &&
+		return strings.Contains(msg, "**Proyecto: Alpha**") &&
 			strings.Contains(msg, "ALP") &&
-			strings.Contains(msg, ":white_circle: Open") &&
-			strings.Contains(msg, ":large_blue_circle: In Progress") &&
-			strings.Contains(msg, ":white_check_mark: Done") &&
+			strings.Contains(msg, ":white_circle: Abierto") &&
+			strings.Contains(msg, ":large_blue_circle: En Progreso") &&
+			strings.Contains(msg, ":white_check_mark: Hecho") &&
 			strings.Contains(msg, "| 2 |") && // Open = backlog(1) + unstarted(1)
 			strings.Contains(msg, "| 1 |") && // In Progress
-			strings.Contains(msg, "Progress:") &&
+			strings.Contains(msg, "Progreso:") &&
 			strings.Contains(msg, "40%") && // 2 done / 5 total
-			strings.Contains(msg, "**Total:** 5 work items") &&
-			strings.Contains(msg, "Open in Plane")
+			strings.Contains(msg, "**Total:** 5 tareas") &&
+			strings.Contains(msg, "Abrir en Plane")
 	}))
 }
 
@@ -770,7 +770,7 @@ func TestPlaneStatusProjectSelection(t *testing.T) {
 		require.NotNil(t, resp)
 
 		api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-			return strings.Contains(post.Message, "**Project: Beta**")
+			return strings.Contains(post.Message, "**Proyecto: Beta**")
 		}))
 	})
 
@@ -802,7 +802,7 @@ func TestPlaneStatusProjectSelection(t *testing.T) {
 		require.NotNil(t, resp)
 
 		api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-			return strings.Contains(post.Message, "Which project?") &&
+			return strings.Contains(post.Message, "Cual proyecto?") &&
 				strings.Contains(post.Message, "Alpha") &&
 				strings.Contains(post.Message, "Beta")
 		}))

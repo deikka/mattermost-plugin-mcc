@@ -139,27 +139,25 @@ func TestPlaneClientListProjectLabels(t *testing.T) {
 func TestPlaneClientListProjectMembers(t *testing.T) {
 	_, client := testPlaneServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		resp := PaginatedResponse{
-			Results: json.RawMessage(`[
-				{"id": "m1", "member": {"id": "u1", "email": "alice@example.com", "display_name": "Alice"}, "role": 20}
-			]`),
+		members := []MemberWrapper{
+			{ID: "u1", Email: "alice@example.com", DisplayName: "Alice", Role: 20},
 		}
-		_ = json.NewEncoder(w).Encode(resp)
+		_ = json.NewEncoder(w).Encode(members)
 	})
 
 	members, err := client.ListProjectMembers("proj1")
 	require.NoError(t, err)
 	assert.Len(t, members, 1)
-	assert.Equal(t, "Alice", members[0].Member.DisplayName)
-	assert.Equal(t, "alice@example.com", members[0].Member.Email)
+	assert.Equal(t, "Alice", members[0].DisplayName)
+	assert.Equal(t, "alice@example.com", members[0].Email)
 }
 
 func TestPlaneClientListWorkspaceMembers(t *testing.T) {
 	_, client := testPlaneServer(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		members := []MemberWrapper{
-			{Member: Member{ID: "u1", Email: "alice@example.com", DisplayName: "Alice"}, Role: 20},
-			{Member: Member{ID: "u2", Email: "bob@example.com", DisplayName: "Bob"}, Role: 15},
+			{ID: "u1", Email: "alice@example.com", DisplayName: "Alice", Role: 20},
+			{ID: "u2", Email: "bob@example.com", DisplayName: "Bob", Role: 15},
 		}
 		_ = json.NewEncoder(w).Encode(members)
 	})
@@ -167,8 +165,8 @@ func TestPlaneClientListWorkspaceMembers(t *testing.T) {
 	members, err := client.ListWorkspaceMembers()
 	require.NoError(t, err)
 	assert.Len(t, members, 2)
-	assert.Equal(t, "alice@example.com", members[0].Member.Email)
-	assert.Equal(t, "bob@example.com", members[1].Member.Email)
+	assert.Equal(t, "alice@example.com", members[0].Email)
+	assert.Equal(t, "bob@example.com", members[1].Email)
 }
 
 func TestPlaneClientCreateWorkItem(t *testing.T) {
@@ -305,8 +303,8 @@ func TestPlaneClientIsConfigured(t *testing.T) {
 
 func TestPlaneClientGetWorkItemURL(t *testing.T) {
 	c := NewClient("https://plane.example.com", "key", "my-team")
-	url := c.GetWorkItemURL("proj-1", "wi-1")
-	assert.Equal(t, "https://plane.example.com/my-team/projects/proj-1/work-items/wi-1", url)
+	url := c.GetWorkItemURL("PROJ", 42)
+	assert.Equal(t, "https://plane.example.com/my-team/browse/PROJ-42", url)
 }
 
 func TestPlaneClientUpdateConfig(t *testing.T) {

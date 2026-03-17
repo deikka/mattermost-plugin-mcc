@@ -27,21 +27,21 @@ func sortWorkItemsByUpdated(items []workItemWithProject) {
 	})
 }
 
-const helpText = `**Task Management Commands**
+const helpText = `**Comandos de Gestion de Tareas**
 
 **Plane**
-- ` + "`/task plane create [title]`" + ` -- Create a new task (alias: ` + "`/task p c`" + `)
-- ` + "`/task plane mine`" + ` -- Show your assigned tasks (alias: ` + "`/task p m`" + `)
-- ` + "`/task plane status [project]`" + ` -- Show project status (alias: ` + "`/task p s`" + `)
-- ` + "`/task plane link [project]`" + ` -- Bind channel to a Plane project (alias: ` + "`/task p l`" + `)
-- ` + "`/task plane unlink`" + ` -- Unbind channel from Plane project (alias: ` + "`/task p u`" + `)
+- ` + "`/task plane create [titulo]`" + ` -- Crear una nueva tarea (alias: ` + "`/task p c`" + `)
+- ` + "`/task plane mine`" + ` -- Ver tus tareas asignadas (alias: ` + "`/task p m`" + `)
+- ` + "`/task plane status [detail] [proyecto]`" + ` -- Ver estado del proyecto (alias: ` + "`/task p s`" + `)
+- ` + "`/task plane link [proyecto]`" + ` -- Vincular canal a un proyecto de Plane (alias: ` + "`/task p l`" + `)
+- ` + "`/task plane unlink`" + ` -- Desvincular canal del proyecto de Plane (alias: ` + "`/task p u`" + `)
 
-**Configuration**
-- ` + "`/task connect`" + ` -- Link your Mattermost account with Plane
-- ` + "`/task obsidian setup`" + ` -- Configure Obsidian REST API endpoint
+**Configuracion**
+- ` + "`/task connect`" + ` -- Vincular tu cuenta de Mattermost con Plane
+- ` + "`/task obsidian setup`" + ` -- Configurar endpoint de Obsidian REST API
 
-**Other**
-- ` + "`/task help`" + ` -- Show this help message`
+**Otros**
+- ` + "`/task help`" + ` -- Mostrar este mensaje de ayuda`
 
 // handleHelp returns the formatted list of all available commands.
 func handleHelp(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArgs []string) *model.CommandResponse {
@@ -85,17 +85,15 @@ func handlePlaneCreate(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 		}
 
 		// Use first project as default
-		projectID := projects[0].ID
-		projectName := projects[0].Name
+		targetProject := projects[0]
 		suffix := ""
 
 		// Check channel binding -- use bound project if available
 		binding, _ := p.store.GetChannelBinding(args.ChannelId)
 		if binding != nil {
 			if proj := findProjectByNameOrID(projects, binding.ProjectName); proj != nil {
-				projectID = proj.ID
-				projectName = proj.Name
-				suffix = fmt.Sprintf(" (Proyecto: %s)", projectName)
+				targetProject = *proj
+				suffix = fmt.Sprintf(" (Proyecto: %s)", targetProject.Name)
 			}
 		}
 
@@ -105,14 +103,14 @@ func handlePlaneCreate(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 			Assignees: []string{mapping.PlaneUserID},
 		}
 
-		workItem, err := p.planeClient.CreateWorkItem(projectID, req)
+		workItem, err := p.planeClient.CreateWorkItem(targetProject.ID, req)
 		if err != nil {
 			p.API.LogError("Failed to create work item inline", "error", err.Error())
 			return p.respondEphemeral(args, "Error al comunicarse con Plane: "+err.Error()+". Intenta de nuevo.")
 		}
 
-		workItemURL := p.planeClient.GetWorkItemURL(projectID, workItem.ID)
-		msg := formatTaskCreatedMessage(title, projectName, workItemURL) + suffix
+		workItemURL := p.planeClient.GetWorkItemURL(targetProject.Identifier, workItem.SequenceID)
+		msg := formatTaskCreatedMessage(title, targetProject.Name, workItemURL) + suffix
 		return p.respondEphemeral(args, msg)
 	}
 
@@ -187,7 +185,7 @@ func handlePlaneMine(p *Plugin, c *plugin.Context, args *model.CommandArgs, subA
 
 	if len(allItems) == 0 {
 		return p.respondEphemeral(args,
-			"You have no tasks assigned in Plane. Create one with `/task plane create`!")
+			"No tienes tareas asignadas en Plane. Crea una con `/task plane create`!")
 	}
 
 	// Sort by UpdatedAt descending and limit to 10
@@ -198,7 +196,7 @@ func handlePlaneMine(p *Plugin, c *plugin.Context, args *model.CommandArgs, subA
 
 	// Format list
 	var sb strings.Builder
-	sb.WriteString("**Your assigned tasks:**" + suffix + "\n\n")
+	sb.WriteString("**Tus tareas asignadas:**" + suffix + "\n\n")
 	for _, item := range allItems {
 		emoji := stateGroupEmoji(item.StateGroup)
 		pLabel := priorityLabel(item.Priority)
@@ -219,14 +217,22 @@ func handlePlaneMine(p *Plugin, c *plugin.Context, args *model.CommandArgs, subA
 	cfg := p.getConfiguration()
 	planeBaseURL := strings.TrimRight(cfg.PlaneURL, "/")
 	workspace := cfg.PlaneWorkspace
-	sb.WriteString(fmt.Sprintf("\n---\n[Open Plane](%s/%s)", planeBaseURL, workspace))
+	sb.WriteString(fmt.Sprintf("\n---\n[Abrir Plane](%s/%s)", planeBaseURL, workspace))
 
 	return p.respondEphemeral(args, sb.String())
 }
 
-// handlePlaneStatus handles /task plane status [project].
+// handlePlaneStatus handles /task plane status [detail] [project].
 // Shows project summary with Open/In Progress/Done counts and progress bar.
+// With "detail" flag, shows tasks grouped by state with titles.
 func handlePlaneStatus(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArgs []string) *model.CommandResponse {
+	// Check for "detail" / "detalle" flag
+	detailed := false
+	if len(subArgs) > 0 && (strings.EqualFold(subArgs[0], "detail") || strings.EqualFold(subArgs[0], "detalle")) {
+		detailed = true
+		subArgs = subArgs[1:]
+	}
+
 	_, ok := requirePlaneConnection(p, args)
 	if !ok {
 		return &model.CommandResponse{}
@@ -275,7 +281,7 @@ func handlePlaneStatus(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 			names = append(names, p.Name+" ("+p.Identifier+")")
 		}
 		return p.respondEphemeral(args, fmt.Sprintf(
-			"Which project? Available: %s. Usage: `/task plane status {project}`",
+			"Cual proyecto? Disponibles: %s. Uso: `/task plane status {proyecto}`",
 			strings.Join(names, ", ")))
 	}
 
@@ -328,15 +334,64 @@ func handlePlaneStatus(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("**Project: %s** (%s)%s\n\n", project.Name, project.Identifier, bindingSuffix))
-	sb.WriteString("| Status | Count |\n")
-	sb.WriteString("|--------|-------|\n")
-	sb.WriteString(fmt.Sprintf("| :white_circle: Open | %d |\n", open))
-	sb.WriteString(fmt.Sprintf("| :large_blue_circle: In Progress | %d |\n", inProgress))
-	sb.WriteString(fmt.Sprintf("| :white_check_mark: Done | %d |\n\n", done))
-	sb.WriteString(fmt.Sprintf("**Progress:** %s %d%%\n", bar, percent))
-	sb.WriteString(fmt.Sprintf("**Total:** %d work items\n\n", total))
-	sb.WriteString(fmt.Sprintf("[Open in Plane](%s)", projectURL))
+	sb.WriteString(fmt.Sprintf("**Proyecto: %s** (%s)%s\n\n", project.Name, project.Identifier, bindingSuffix))
+	sb.WriteString("| Estado | Cantidad |\n")
+	sb.WriteString("|--------|----------|\n")
+	sb.WriteString(fmt.Sprintf("| :white_circle: Abierto | %d |\n", open))
+	sb.WriteString(fmt.Sprintf("| :large_blue_circle: En Progreso | %d |\n", inProgress))
+	sb.WriteString(fmt.Sprintf("| :white_check_mark: Hecho | %d |\n\n", done))
+	sb.WriteString(fmt.Sprintf("**Progreso:** %s %d%%\n", bar, percent))
+	sb.WriteString(fmt.Sprintf("**Total:** %d tareas\n\n", total))
+
+	if detailed {
+		// Group work items by display category
+		type stateCategory struct {
+			emoji string
+			label string
+			items []plane.WorkItem
+		}
+		categories := []stateCategory{
+			{":large_blue_circle:", "En Progreso", nil},
+			{":white_circle:", "Abierto", nil},
+			{":white_check_mark:", "Hecho", nil},
+		}
+		for _, item := range workItems {
+			group := item.StateGroup
+			if group == "" {
+				group = "backlog"
+			}
+			switch group {
+			case "started":
+				categories[0].items = append(categories[0].items, item)
+			case "backlog", "unstarted":
+				categories[1].items = append(categories[1].items, item)
+			case "completed":
+				categories[2].items = append(categories[2].items, item)
+			}
+		}
+
+		sb.WriteString("---\n\n")
+		for _, cat := range categories {
+			if len(cat.items) == 0 {
+				continue
+			}
+			sb.WriteString(fmt.Sprintf("%s **%s** (%d)\n", cat.emoji, cat.label, len(cat.items)))
+			for _, item := range cat.items {
+				itemURL := p.planeClient.GetWorkItemURL(project.Identifier, item.SequenceID)
+				pLabel := priorityLabel(item.Priority)
+				line := fmt.Sprintf("- [%s](%s)", item.Name, itemURL)
+				if pLabel != "" {
+					line += " · " + pLabel
+				}
+				sb.WriteString(line + "\n")
+			}
+			sb.WriteString("\n")
+		}
+	} else {
+		sb.WriteString(fmt.Sprintf("_Usa `/task plane status detail` para ver las tareas_\n\n"))
+	}
+
+	sb.WriteString(fmt.Sprintf("[Abrir en Plane](%s)", projectURL))
 
 	return p.respondEphemeral(args, sb.String())
 }
@@ -347,18 +402,18 @@ func handleConnect(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArg
 	// Check if Plane client is configured
 	if !p.planeClient.IsConfigured() {
 		return p.respondEphemeral(args,
-			"Plane is not configured yet. Ask your admin to set it up in **System Console > Plugins > Mattermost Command Center**.")
+			"Plane no esta configurado. Pide a tu admin que lo configure en **System Console > Plugins > Mattermost Command Center**.")
 	}
 
 	// Check if already connected
 	existing, err := p.store.GetPlaneUser(args.UserId)
 	if err != nil {
 		p.API.LogError("Failed to check existing Plane connection", "error", err.Error())
-		return p.respondEphemeral(args, "Something went wrong checking your connection status. Please try again.")
+		return p.respondEphemeral(args, "Algo salio mal comprobando tu conexion. Intenta de nuevo.")
 	}
 	if existing != nil {
 		return p.respondEphemeral(args, fmt.Sprintf(
-			"Your account is already linked to Plane as **%s** (%s). Run `/task disconnect` to unlink.",
+			"Tu cuenta ya esta vinculada a Plane como **%s** (%s). Usa `/task disconnect` para desvincular.",
 			existing.PlaneDisplayName, existing.PlaneEmail))
 	}
 
@@ -366,7 +421,7 @@ func handleConnect(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArg
 	mmUser, appErr := p.API.GetUser(args.UserId)
 	if appErr != nil {
 		p.API.LogError("Failed to get Mattermost user", "error", appErr.Error())
-		return p.respondEphemeral(args, "Could not retrieve your Mattermost profile. Please try again.")
+		return p.respondEphemeral(args, "No se pudo obtener tu perfil de Mattermost. Intenta de nuevo.")
 	}
 
 	// Fetch workspace members from Plane
@@ -374,7 +429,7 @@ func handleConnect(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArg
 	if err != nil {
 		p.API.LogError("Failed to list Plane workspace members", "error", err.Error())
 		return p.respondEphemeral(args,
-			"Could not reach Plane. Check your network and Plane URL in **System Console > Plugins > Mattermost Command Center**.")
+			"No se pudo conectar con Plane. Verifica la red y la URL de Plane en **System Console > Plugins > Mattermost Command Center**.")
 	}
 
 	// Search for email match
@@ -384,18 +439,18 @@ func handleConnect(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArg
 		displayName string
 	}
 	for _, m := range members {
-		if strings.EqualFold(m.Member.Email, mmUser.Email) {
-			displayName := m.Member.DisplayName
+		if strings.EqualFold(m.Email, mmUser.Email) {
+			displayName := m.DisplayName
 			if displayName == "" {
-				displayName = strings.TrimSpace(m.Member.FirstName + " " + m.Member.LastName)
+				displayName = strings.TrimSpace(m.FirstName + " " + m.LastName)
 			}
 			matches = append(matches, struct {
 				userID      string
 				email       string
 				displayName string
 			}{
-				userID:      m.Member.ID,
-				email:       m.Member.Email,
+				userID:      m.ID,
+				email:       m.Email,
 				displayName: displayName,
 			})
 		}
@@ -404,8 +459,8 @@ func handleConnect(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArg
 	switch len(matches) {
 	case 0:
 		return p.respondEphemeral(args, fmt.Sprintf(
-			"Could not find a Plane account matching your email (%s). "+
-				"Please verify your Plane account email matches your Mattermost email, or contact your admin.",
+			"No se encontro una cuenta de Plane con tu email (%s). "+
+				"Verifica que el email de tu cuenta de Plane coincida con el de Mattermost, o contacta a tu admin.",
 			mmUser.Email))
 	case 1:
 		// Auto-link
@@ -417,14 +472,14 @@ func handleConnect(p *Plugin, c *plugin.Context, args *model.CommandArgs, subArg
 		}
 		if err := p.store.SavePlaneUser(args.UserId, mapping); err != nil {
 			p.API.LogError("Failed to save Plane user mapping", "error", err.Error())
-			return p.respondEphemeral(args, "Connected your account but failed to save. Please try again.")
+			return p.respondEphemeral(args, "Cuenta conectada pero fallo al guardar. Intenta de nuevo.")
 		}
 		return p.respondEphemeral(args, fmt.Sprintf(
-			"Connected! Your Mattermost account is now linked to **%s** (%s) in Plane.",
+			"Conectado! Tu cuenta de Mattermost esta vinculada a **%s** (%s) en Plane.",
 			matches[0].displayName, matches[0].email))
 	default:
 		return p.respondEphemeral(args,
-			"Found multiple Plane accounts matching your email. Please contact your admin.")
+			"Se encontraron multiples cuentas de Plane con tu email. Contacta a tu admin.")
 	}
 }
 
@@ -436,14 +491,14 @@ func handleObsidianSetup(p *Plugin, c *plugin.Context, args *model.CommandArgs, 
 		URL:       fmt.Sprintf("/plugins/%s/api/v1/dialog/obsidian-setup", manifestID),
 		Dialog: model.Dialog{
 			CallbackId: "obsidian_setup",
-			Title:      "Configure Obsidian REST API",
+			Title:      "Configurar Obsidian REST API",
 			Elements: []model.DialogElement{
 				{
 					DisplayName: "Host",
 					Name:        "host",
 					Type:        "text",
 					Default:     "127.0.0.1",
-					HelpText:    "Hostname or IP of the machine running Obsidian",
+					HelpText:    "Hostname o IP de la maquina que ejecuta Obsidian",
 					Placeholder: "127.0.0.1",
 				},
 				{
@@ -451,7 +506,7 @@ func handleObsidianSetup(p *Plugin, c *plugin.Context, args *model.CommandArgs, 
 					Name:        "port",
 					Type:        "text",
 					Default:     "27124",
-					HelpText:    "Port for the Obsidian Local REST API plugin (default: 27124)",
+					HelpText:    "Puerto del plugin Obsidian Local REST API (default: 27124)",
 					Placeholder: "27124",
 				},
 				{
@@ -459,18 +514,18 @@ func handleObsidianSetup(p *Plugin, c *plugin.Context, args *model.CommandArgs, 
 					Name:        "api_key",
 					Type:        "text",
 					SubType:     "password",
-					HelpText:    "API key from the Obsidian Local REST API plugin settings",
+					HelpText:    "API key de los ajustes del plugin Obsidian Local REST API",
 					Placeholder: "Your Obsidian REST API key",
 				},
 			},
-			SubmitLabel:    "Save Configuration",
+			SubmitLabel:    "Guardar Configuracion",
 			NotifyOnCancel: false,
 		},
 	}
 
 	if appErr := p.API.OpenInteractiveDialog(dialog); appErr != nil {
 		p.API.LogError("Failed to open Obsidian setup dialog", "error", appErr.Error())
-		return p.respondEphemeral(args, "Could not open the configuration dialog. Please try again.")
+		return p.respondEphemeral(args, "No se pudo abrir el dialogo de configuracion. Intenta de nuevo.")
 	}
 
 	return &model.CommandResponse{}
@@ -483,12 +538,12 @@ func requirePlaneConnection(p *Plugin, args *model.CommandArgs) (*store.PlaneUse
 	mapping, err := p.store.GetPlaneUser(args.UserId)
 	if err != nil {
 		p.API.LogError("Failed to check Plane connection", "error", err.Error())
-		p.sendEphemeral(args.UserId, args.ChannelId, "Something went wrong. Please try again.")
+		p.sendEphemeral(args.UserId, args.ChannelId, "Algo salio mal. Intenta de nuevo.")
 		return nil, false
 	}
 	if mapping == nil {
 		p.sendEphemeral(args.UserId, args.ChannelId,
-			"You haven't linked your Plane account yet. Run `/task connect` to get started.")
+			"Aun no has vinculado tu cuenta de Plane. Usa `/task connect` para empezar.")
 		return nil, false
 	}
 	return mapping, true

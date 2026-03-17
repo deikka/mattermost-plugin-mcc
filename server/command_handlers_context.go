@@ -99,13 +99,13 @@ func (p *Plugin) handleCreateTaskFromMessage(w http.ResponseWriter, r *http.Requ
 	}
 	members, _ := p.planeClient.ListProjectMembers(defaultProjectID)
 	for _, m := range members {
-		displayName := m.Member.DisplayName
+		displayName := m.DisplayName
 		if displayName == "" {
-			displayName = m.Member.Email
+			displayName = m.Email
 		}
 		assigneeOptions = append(assigneeOptions, map[string]string{
 			"text":  displayName,
-			"value": m.Member.ID,
+			"value": m.ID,
 		})
 	}
 
@@ -124,7 +124,7 @@ func (p *Plugin) handleCreateTaskFromMessage(w http.ResponseWriter, r *http.Requ
 		"url": callbackURL,
 		"dialog": map[string]interface{}{
 			"callback_id": "create_task_from_message",
-			"title":       "Create Task in Plane",
+			"title":       "Crear Tarea en Plane",
 			"elements": []map[string]interface{}{
 				{
 					"display_name": "Title",
@@ -181,7 +181,7 @@ func (p *Plugin) handleCreateTaskFromMessage(w http.ResponseWriter, r *http.Requ
 					"placeholder":  "bug, frontend, urgent",
 				},
 			},
-			"submit_label":     "Create Task",
+			"submit_label":     "Crear Tarea",
 			"notify_on_cancel": false,
 		},
 	}

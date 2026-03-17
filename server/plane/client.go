@@ -117,7 +117,8 @@ func parseAPIError(resp *http.Response) *APIError {
 }
 
 // GetWorkItemURL constructs a browser-accessible URL for a work item.
-func (c *Client) GetWorkItemURL(projectID, workItemID string) string {
+// Plane uses the format: /{workspace}/browse/{PROJECT_IDENTIFIER}-{sequence_id}
+func (c *Client) GetWorkItemURL(projectIdentifier string, sequenceID int) string {
 	baseURL, _, workspace := c.getConfig()
-	return fmt.Sprintf("%s/%s/projects/%s/work-items/%s", baseURL, workspace, projectID, workItemID)
+	return fmt.Sprintf("%s/%s/browse/%s-%d", baseURL, workspace, projectIdentifier, sequenceID)
 }

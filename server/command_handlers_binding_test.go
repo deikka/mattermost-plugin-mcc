@@ -62,7 +62,7 @@ func TestPlaneLinkNotConnected(t *testing.T) {
 	require.Nil(t, appErr)
 	require.NotNil(t, resp)
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "haven't linked")
+		return strings.Contains(post.Message, "no has vinculado")
 	}))
 }
 
@@ -178,7 +178,7 @@ func TestBindingAwareMine(t *testing.T) {
 	require.Nil(t, appErr)
 	require.NotNil(t, resp)
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "Your assigned tasks") &&
+		return strings.Contains(post.Message, "Tus tareas asignadas") &&
 			strings.Contains(post.Message, "(Proyecto: Alpha)")
 	}))
 }
@@ -208,7 +208,7 @@ func TestBindingAwareStatus(t *testing.T) {
 	require.Nil(t, appErr)
 	require.NotNil(t, resp)
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "**Project: Alpha**") &&
+		return strings.Contains(post.Message, "**Proyecto: Alpha**") &&
 			strings.Contains(post.Message, "(Proyecto: Alpha)")
 	}))
 }
@@ -353,7 +353,7 @@ func TestContextMenuAction(t *testing.T) {
 	// Verify dialog structure
 	dialog, ok := dialogConfig["dialog"].(map[string]interface{})
 	require.True(t, ok)
-	require.Equal(t, "Create Task in Plane", dialog["title"])
+	require.Equal(t, "Crear Tarea en Plane", dialog["title"])
 	require.Equal(t, "create_task_from_message", dialog["callback_id"])
 
 	// Verify elements have pre-populated title and description

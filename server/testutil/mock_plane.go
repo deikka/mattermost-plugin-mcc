@@ -171,24 +171,20 @@ func (m *MockPlaneServer) setDefaultResponses() {
 		statusCode: http.StatusOK,
 		body: []map[string]interface{}{
 			{
-				"member": map[string]interface{}{
-					"id":           "user-uuid-001",
-					"email":        "alice@example.com",
-					"display_name": "Alice Smith",
-					"first_name":   "Alice",
-					"last_name":    "Smith",
-					"role":         20,
-				},
+				"id":           "user-uuid-001",
+				"email":        "alice@example.com",
+				"display_name": "Alice Smith",
+				"first_name":   "Alice",
+				"last_name":    "Smith",
+				"role":         20,
 			},
 			{
-				"member": map[string]interface{}{
-					"id":           "user-uuid-002",
-					"email":        "bob@example.com",
-					"display_name": "Bob Johnson",
-					"first_name":   "Bob",
-					"last_name":    "Johnson",
-					"role":         15,
-				},
+				"id":           "user-uuid-002",
+				"email":        "bob@example.com",
+				"display_name": "Bob Johnson",
+				"first_name":   "Bob",
+				"last_name":    "Johnson",
+				"role":         15,
 			},
 		},
 	}
@@ -246,18 +242,14 @@ func (m *MockPlaneServer) setDefaultResponses() {
 		statusCode: http.StatusOK,
 		body: &resultsWrapper{Results: []map[string]interface{}{
 			{
-				"member": map[string]interface{}{
-					"id":           "user-uuid-001",
-					"email":        "alice@example.com",
-					"display_name": "Alice Smith",
-				},
+				"id":           "user-uuid-001",
+				"email":        "alice@example.com",
+				"display_name": "Alice Smith",
 			},
 			{
-				"member": map[string]interface{}{
-					"id":           "user-uuid-002",
-					"email":        "bob@example.com",
-					"display_name": "Bob Johnson",
-				},
+				"id":           "user-uuid-002",
+				"email":        "bob@example.com",
+				"display_name": "Bob Johnson",
 			},
 		}},
 	}

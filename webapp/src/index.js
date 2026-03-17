@@ -13,7 +13,7 @@ class MccPlugin {
         this.store = store;
 
         registry.registerPostDropdownMenuAction(
-            'Create Task in Plane',
+            'Crear Tarea en Plane',
             this.handleCreateTask.bind(this),
         );
     }
