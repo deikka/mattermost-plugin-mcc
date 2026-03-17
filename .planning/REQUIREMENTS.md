@@ -10,8 +10,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Setup & Configuration
 
 - [x] **CONF-01**: Admin puede configurar URL, API key y workspace de Plane desde System Console de Mattermost
-- [ ] **CONF-02**: Usuario puede vincular su cuenta Mattermost con su usuario Plane via `/task connect`
-- [ ] **CONF-03**: Usuario puede configurar su endpoint de Obsidian Local REST API via `/task obsidian setup` (host, puerto, API key)
+- [x] **CONF-02**: Usuario puede vincular su cuenta Mattermost con su usuario Plane via `/task connect`
+- [x] **CONF-03**: Usuario puede configurar su endpoint de Obsidian Local REST API via `/task obsidian setup` (host, puerto, API key)
 - [x] **CONF-04**: Usuario puede ver comandos disponibles y su uso via `/task help`
 - [x] **CONF-05**: Plugin crea bot account automaticamente al activarse para publicar mensajes
 
@@ -75,8 +75,8 @@ Deferred to future release. Tracked but not in current roadmap.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | CONF-01 | Phase 1 | Complete |
-| CONF-02 | Phase 1 | Pending |
-| CONF-03 | Phase 1 | Pending |
+| CONF-02 | Phase 1 | Complete |
+| CONF-03 | Phase 1 | Complete |
 | CONF-04 | Phase 1 | Complete |
 | CONF-05 | Phase 1 | Complete |
 | CREA-01 | Phase 1 | Pending |
