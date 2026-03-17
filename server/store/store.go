@@ -109,6 +109,60 @@ func (s *Store) SaveObsidianConfig(mmUserID string, config *ObsidianConfig) erro
 	return nil
 }
 
+// === Phase 2: Channel-Project Binding ===
+
+const (
+	// prefixChannelProject is the KV store key prefix for channel-project bindings.
+	prefixChannelProject = "channel_project_"
+)
+
+// ChannelProjectBinding stores the 1:1 mapping between a Mattermost channel and a Plane project.
+type ChannelProjectBinding struct {
+	ProjectID   string `json:"project_id"`
+	ProjectName string `json:"project_name"`
+	BoundBy     string `json:"bound_by"`  // Mattermost user ID who created binding
+	BoundAt     int64  `json:"bound_at"`  // Unix timestamp
+}
+
+// GetChannelBinding retrieves the project binding for a Mattermost channel ID.
+// Returns nil, nil if no binding exists.
+func (s *Store) GetChannelBinding(channelID string) (*ChannelProjectBinding, error) {
+	data, appErr := s.api.KVGet(prefixChannelProject + channelID)
+	if appErr != nil {
+		return nil, fmt.Errorf("KVGet failed: %s", appErr.Error())
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	var binding ChannelProjectBinding
+	if err := json.Unmarshal(data, &binding); err != nil {
+		return nil, fmt.Errorf("unmarshal ChannelProjectBinding: %w", err)
+	}
+	return &binding, nil
+}
+
+// SaveChannelBinding stores the project binding for a Mattermost channel ID.
+func (s *Store) SaveChannelBinding(channelID string, binding *ChannelProjectBinding) error {
+	data, err := json.Marshal(binding)
+	if err != nil {
+		return fmt.Errorf("marshal ChannelProjectBinding: %w", err)
+	}
+
+	if appErr := s.api.KVSet(prefixChannelProject+channelID, data); appErr != nil {
+		return fmt.Errorf("KVSet failed: %s", appErr.Error())
+	}
+	return nil
+}
+
+// DeleteChannelBinding removes the project binding for a Mattermost channel ID.
+func (s *Store) DeleteChannelBinding(channelID string) error {
+	if appErr := s.api.KVDelete(prefixChannelProject + channelID); appErr != nil {
+		return fmt.Errorf("KVDelete failed: %s", appErr.Error())
+	}
+	return nil
+}
+
 // IsPlaneConnected returns true if the given Mattermost user has a Plane account linked.
 func (s *Store) IsPlaneConnected(mmUserID string) (bool, error) {
 	mapping, err := s.GetPlaneUser(mmUserID)

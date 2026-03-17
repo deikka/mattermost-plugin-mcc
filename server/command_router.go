@@ -15,6 +15,8 @@ var commandHandlers = map[string]CommandHandlerFunc{
 	"plane/create":   handlePlaneCreate,
 	"plane/mine":     handlePlaneMine,
 	"plane/status":   handlePlaneStatus,
+	"plane/link":     handlePlaneLink,
+	"plane/unlink":   handlePlaneUnlink,
 	"connect":        handleConnect,
 	"obsidian/setup": handleObsidianSetup,
 	"help":           handleHelp,
@@ -25,6 +27,8 @@ var commandAliases = map[string]string{
 	"p/c": "plane/create",
 	"p/m": "plane/mine",
 	"p/s": "plane/status",
+	"p/l": "plane/link",
+	"p/u": "plane/unlink",
 }
 
 // ExecuteCommand routes slash commands to the appropriate handler.

@@ -179,6 +179,105 @@ func TestKVStoreSaveObsidianConfig(t *testing.T) {
 	}))
 }
 
+// === Phase 2: ChannelProjectBinding CRUD Tests ===
+
+func TestChannelBindingSaveAndGet(t *testing.T) {
+	s, api := setupTestStore(t)
+
+	binding := &ChannelProjectBinding{
+		ProjectID:   "proj-uuid-001",
+		ProjectName: "Backend",
+		BoundBy:     "mm-user-1",
+		BoundAt:     1710000000,
+	}
+	data, _ := json.Marshal(binding)
+
+	api.On("KVSet", "channel_project_channel-1", mock.AnythingOfType("[]uint8")).Return(nil)
+	api.On("KVGet", "channel_project_channel-1").Return(data, nil)
+
+	err := s.SaveChannelBinding("channel-1", binding)
+	require.NoError(t, err)
+
+	result, err := s.GetChannelBinding("channel-1")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "proj-uuid-001", result.ProjectID)
+	assert.Equal(t, "Backend", result.ProjectName)
+	assert.Equal(t, "mm-user-1", result.BoundBy)
+	assert.Equal(t, int64(1710000000), result.BoundAt)
+}
+
+func TestChannelBindingGetNotFound(t *testing.T) {
+	s, api := setupTestStore(t)
+
+	api.On("KVGet", "channel_project_channel-nonexistent").Return(nil, nil)
+
+	result, err := s.GetChannelBinding("channel-nonexistent")
+	require.NoError(t, err)
+	assert.Nil(t, result)
+}
+
+func TestChannelBindingDelete(t *testing.T) {
+	s, api := setupTestStore(t)
+
+	binding := &ChannelProjectBinding{
+		ProjectID:   "proj-uuid-001",
+		ProjectName: "Backend",
+		BoundBy:     "mm-user-1",
+		BoundAt:     1710000000,
+	}
+
+	api.On("KVSet", "channel_project_channel-1", mock.AnythingOfType("[]uint8")).Return(nil)
+	api.On("KVDelete", "channel_project_channel-1").Return(nil)
+
+	// Save the binding
+	err := s.SaveChannelBinding("channel-1", binding)
+	require.NoError(t, err)
+
+	// Delete it
+	err = s.DeleteChannelBinding("channel-1")
+	require.NoError(t, err)
+
+	api.AssertCalled(t, "KVDelete", "channel_project_channel-1")
+}
+
+func TestChannelBindingOverwrite(t *testing.T) {
+	s, api := setupTestStore(t)
+
+	binding1 := &ChannelProjectBinding{
+		ProjectID:   "proj-uuid-001",
+		ProjectName: "Backend",
+		BoundBy:     "mm-user-1",
+		BoundAt:     1710000000,
+	}
+	binding2 := &ChannelProjectBinding{
+		ProjectID:   "proj-uuid-002",
+		ProjectName: "Frontend",
+		BoundBy:     "mm-user-2",
+		BoundAt:     1710001000,
+	}
+	data2, _ := json.Marshal(binding2)
+
+	api.On("KVSet", "channel_project_channel-1", mock.AnythingOfType("[]uint8")).Return(nil)
+	api.On("KVGet", "channel_project_channel-1").Return(data2, nil)
+
+	// Save first binding
+	err := s.SaveChannelBinding("channel-1", binding1)
+	require.NoError(t, err)
+
+	// Overwrite with second binding
+	err = s.SaveChannelBinding("channel-1", binding2)
+	require.NoError(t, err)
+
+	// Get should return the latest binding
+	result, err := s.GetChannelBinding("channel-1")
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, "proj-uuid-002", result.ProjectID)
+	assert.Equal(t, "Frontend", result.ProjectName)
+	assert.Equal(t, "mm-user-2", result.BoundBy)
+}
+
 func TestKVStoreIsPlaneConnected(t *testing.T) {
 	t.Run("connected", func(t *testing.T) {
 		s, api := setupTestStore(t)

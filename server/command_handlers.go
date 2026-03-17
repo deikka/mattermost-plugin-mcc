@@ -33,6 +33,8 @@ const helpText = `**Task Management Commands**
 - ` + "`/task plane create [title]`" + ` -- Create a new task (alias: ` + "`/task p c`" + `)
 - ` + "`/task plane mine`" + ` -- Show your assigned tasks (alias: ` + "`/task p m`" + `)
 - ` + "`/task plane status [project]`" + ` -- Show project status (alias: ` + "`/task p s`" + `)
+- ` + "`/task plane link [project]`" + ` -- Bind channel to a Plane project (alias: ` + "`/task p l`" + `)
+- ` + "`/task plane unlink`" + ` -- Unbind channel from Plane project (alias: ` + "`/task p u`" + `)
 
 **Configuration**
 - ` + "`/task connect`" + ` -- Link your Mattermost account with Plane
