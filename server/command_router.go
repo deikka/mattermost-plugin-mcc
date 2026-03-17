@@ -36,24 +36,31 @@ func (p *Plugin) ExecuteCommand(c *plugin.Context, args *model.CommandArgs) (*mo
 		return handleHelp(p, c, args, nil), nil
 	}
 
-	command := buildCommandKey(split[1:])
+	parts := split[1:] // everything after "/task"
 
-	// Check aliases
-	if alias, ok := commandAliases[command]; ok {
-		command = alias
-	}
+	// Try progressively shorter keys to find the deepest match.
+	// For "/task plane create my title", try:
+	//   "plane/create/my/title" -> miss
+	//   "plane/create/my"       -> miss
+	//   "plane/create"          -> hit! subArgs = ["my", "title"]
+	for i := len(parts); i > 0; i-- {
+		command := strings.Join(parts[:i], "/")
 
-	if handler, ok := commandHandlers[command]; ok {
-		// Pass remaining args after the command key parts
-		keyParts := len(strings.Split(command, "/"))
-		var subArgs []string
-		if len(split) > keyParts+1 {
-			subArgs = split[keyParts+1:]
+		// Resolve alias
+		if alias, ok := commandAliases[command]; ok {
+			command = alias
 		}
-		return handler(p, c, args, subArgs), nil
+
+		if handler, ok := commandHandlers[command]; ok {
+			var subArgs []string
+			if i < len(parts) {
+				subArgs = parts[i:]
+			}
+			return handler(p, c, args, subArgs), nil
+		}
 	}
 
-	return p.suggestCommand(args, split[1:])
+	return p.suggestCommand(args, parts)
 }
 
 // buildCommandKey joins command parts with "/" to form a lookup key.
@@ -62,8 +69,6 @@ func buildCommandKey(parts []string) string {
 	if len(parts) == 0 {
 		return ""
 	}
-	// Build progressively longer keys to find the deepest match
-	// For example, ["plane", "create", "foo"] should match "plane/create"
 	return strings.Join(parts, "/")
 }
 
