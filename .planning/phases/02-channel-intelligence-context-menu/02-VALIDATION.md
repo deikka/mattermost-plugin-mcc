@@ -55,7 +55,7 @@ created: 2026-03-17
 
 - [ ] `server/store/store_test.go` — add tests for ChannelProjectBinding CRUD
 - [ ] `server/link_unfurl_test.go` — test URL extraction, attachment building, MessageHasBeenPosted logic
-- [ ] `server/command_test.go` — add tests for plane link/unlink, binding-aware handlers
+- [ ] `server/command_handlers_binding_test.go` — add tests for plane link/unlink, binding-aware handlers, context menu action, dialog pre-selection
 - [ ] `server/plane/client_test.go` — add test for GetWorkItem
 - [ ] `webapp/` — no automated testing needed for ~50 lines of JS; manual verification in browser
 
@@ -69,6 +69,7 @@ created: 2026-03-17
 |----------|-------------|------------|-------------------|
 | Context menu appears in post "..." dropdown | CREA-02 | Webapp UI, requires browser | Install plugin, right-click message "...", verify "Create Task" option appears |
 | Dialog pre-populates from message text | CREA-02 | Webapp -> server dialog flow | Click "Create Task" from context menu, verify title/description pre-populated |
+| Dialog opens via store.dispatch (no trigger_id) | CREA-02 | Webapp Redux dispatch, requires browser | Click "Create Task", verify dialog modal appears (not a 400 error) |
 | Link unfurl card renders correctly | NOTF-03 | Visual rendering in Mattermost | Paste Plane URL in chat, verify attachment card with title/status/assignee renders |
 | Emoji reaction appears on source message | CREA-02 | Requires live Mattermost instance | Create task from context menu, verify :memo: reaction on original message |
 | Bot announces binding in channel | BIND-01 | Visual + permissions check | Run `/task plane link`, verify bot post visible to all channel members |
