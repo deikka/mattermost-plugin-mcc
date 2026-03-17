@@ -127,17 +127,17 @@ func TestCommandRouting(t *testing.T) {
 		{
 			name:    "plane create routes to handlePlaneCreate",
 			command: "/task plane create",
-			expect:  "not yet implemented",
+			expect:  "haven't linked",
 		},
 		{
 			name:    "plane mine routes to handlePlaneMine",
 			command: "/task plane mine",
-			expect:  "not yet implemented",
+			expect:  "haven't linked",
 		},
 		{
 			name:    "plane status routes to handlePlaneStatus",
 			command: "/task plane status",
-			expect:  "not yet implemented",
+			expect:  "haven't linked",
 		},
 		{
 			name:    "help routes to handleHelp",
@@ -148,7 +148,9 @@ func TestCommandRouting(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, _ := setupCommandTestPlugin(t)
+			p, api := setupCommandTestPlugin(t)
+			// Mock KVGet for requirePlaneConnection (user not connected)
+			api.On("KVGet", mock.AnythingOfType("string")).Return(nil, nil).Maybe()
 
 			args := &model.CommandArgs{
 				Command:   tt.command,
@@ -210,6 +212,8 @@ func TestCommandRoutingObsidianSetup(t *testing.T) {
 func TestCommandRoutingWithArgs(t *testing.T) {
 	// Verify that arguments after the command key are passed through
 	p, api := setupCommandTestPlugin(t)
+	// Mock: user not connected -- requirePlaneConnection will block
+	api.On("KVGet", mock.AnythingOfType("string")).Return(nil, nil).Maybe()
 
 	args := &model.CommandArgs{
 		Command:   "/task plane create My Task Title",
@@ -221,14 +225,16 @@ func TestCommandRoutingWithArgs(t *testing.T) {
 	require.Nil(t, appErr)
 	require.NotNil(t, resp)
 
-	// Should route to handlePlaneCreate (stub returns "not yet implemented")
+	// Should route to handlePlaneCreate which requires connection
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "not yet implemented")
+		return strings.Contains(post.Message, "haven't linked")
 	}))
 }
 
 func TestCommandAliases(t *testing.T) {
 	p, api := setupCommandTestPlugin(t)
+	// Mock: user not connected -- all Plane commands require connection
+	api.On("KVGet", mock.AnythingOfType("string")).Return(nil, nil).Maybe()
 
 	tests := []struct {
 		name     string
@@ -238,17 +244,17 @@ func TestCommandAliases(t *testing.T) {
 		{
 			name:     "p/c maps to plane/create",
 			alias:    "/task p c",
-			expected: "not yet implemented",
+			expected: "haven't linked",
 		},
 		{
 			name:     "p/m maps to plane/mine",
 			alias:    "/task p m",
-			expected: "not yet implemented",
+			expected: "haven't linked",
 		},
 		{
 			name:     "p/s maps to plane/status",
 			alias:    "/task p s",
-			expected: "not yet implemented",
+			expected: "haven't linked",
 		},
 	}
 
@@ -274,6 +280,8 @@ func TestCommandAliases(t *testing.T) {
 func TestCommandAliasesWithArgs(t *testing.T) {
 	// Verify aliases work with additional arguments
 	p, api := setupCommandTestPlugin(t)
+	// Mock: user not connected
+	api.On("KVGet", mock.AnythingOfType("string")).Return(nil, nil).Maybe()
 
 	args := &model.CommandArgs{
 		Command:   "/task p c Quick task title",
@@ -286,7 +294,7 @@ func TestCommandAliasesWithArgs(t *testing.T) {
 	require.NotNil(t, resp)
 
 	api.AssertCalled(t, "SendEphemeralPost", "user-1", mock.MatchedBy(func(post *model.Post) bool {
-		return strings.Contains(post.Message, "not yet implemented")
+		return strings.Contains(post.Message, "haven't linked")
 	}))
 }
 
