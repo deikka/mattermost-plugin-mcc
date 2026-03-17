@@ -628,10 +628,6 @@ func setupMineStatusTestPlugin(t *testing.T, workItems []plane.WorkItem) (*Plugi
 	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything).Maybe()
 	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Maybe()
-	// Channel binding lookups (no binding by default)
-	api.On("KVGet", mock.MatchedBy(func(key string) bool {
-		return strings.HasPrefix(key, "channel_project_")
-	})).Return(nil, nil).Maybe()
 
 	p := &Plugin{}
 	p.SetAPI(api)
