@@ -28,9 +28,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Usuario puede crear una tarea en Plane via `/task plane create`, completar el dialogo interactivo, y recibir confirmacion efimera con link a la tarea creada
   4. Usuario puede ver sus tareas asignadas en Plane via `/task plane mine` y el estado de un proyecto via `/task plane status`
   5. Usuario puede ver la lista de comandos disponibles via `/task help`
-**Plans:** 3 plans
+**Plans:** 4 plans
 
 Plans:
+- [ ] 01-00-PLAN.md — Wave 0: Test infrastructure scaffolding (test helpers, mock Plane server, test stubs)
 - [ ] 01-01-PLAN.md — Plugin scaffold, System Console config, bot account, command registration with autocomplete, /task help
 - [ ] 01-02-PLAN.md — Plane API client, KV store, cache, /task connect, /task obsidian setup, HTTP API endpoints
 - [ ] 01-03-PLAN.md — /task plane create (dialog + inline), /task plane mine, /task plane status, ephemeral confirmations
@@ -69,6 +70,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Core Plane Commands | 0/3 | Not started | - |
+| 1. Foundation + Core Plane Commands | 0/4 | Not started | - |
 | 2. Channel Intelligence + Context Menu | 0/2 | Not started | - |
 | 3. Notifications + Automation | 0/1 | Not started | - |

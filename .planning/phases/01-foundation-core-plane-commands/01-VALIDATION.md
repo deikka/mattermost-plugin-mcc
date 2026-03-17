@@ -2,8 +2,8 @@
 phase: 1
 slug: foundation-core-plane-commands
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-17
 ---
 
@@ -38,15 +38,19 @@ created: 2026-03-17
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
+| 01-00-01 | 00 | 0 | (infra) | scaffold | `go build ./server/testutil/...` | Wave 0 creates | pending |
+| 01-00-02 | 00 | 0 | (infra) | scaffold | `go test ./server/... -count=1 -short` | Wave 0 creates | pending |
 | 01-01-01 | 01 | 1 | CONF-01 | unit | `go test ./server/ -run TestConfiguration -count=1` | Wave 0 | pending |
 | 01-01-02 | 01 | 1 | CONF-05 | unit | `go test ./server/ -run TestOnActivate -count=1` | Wave 0 | pending |
-| 01-02-01 | 02 | 1 | CONF-02 | unit | `go test ./server/ -run TestConnectCommand -count=1` | Wave 0 | pending |
-| 01-02-02 | 02 | 1 | CONF-03 | unit | `go test ./server/ -run TestObsidianSetup -count=1` | Wave 0 | pending |
-| 01-02-03 | 02 | 1 | CONF-04 | unit | `go test ./server/ -run TestHelpCommand -count=1` | Wave 0 | pending |
-| 01-03-01 | 03 | 2 | CREA-01 | unit+integration | `go test ./server/ -run TestCreateTask -count=1` | Wave 0 | pending |
-| 01-03-02 | 03 | 2 | CREA-04 | unit | `go test ./server/ -run TestCreateTaskConfirmation -count=1` | Wave 0 | pending |
-| 01-03-03 | 03 | 2 | QERY-01 | unit | `go test ./server/ -run TestPlaneMine -count=1` | Wave 0 | pending |
-| 01-03-04 | 03 | 2 | QERY-02 | unit | `go test ./server/ -run TestPlaneStatus -count=1` | Wave 0 | pending |
+| 01-01-03 | 01 | 1 | CONF-04 | unit | `go test ./server/ -run TestHelpCommand -count=1` | Wave 0 | pending |
+| 01-02-01 | 02 | 2 | CONF-02 | unit | `go test ./server/ -run TestConnectCommand -count=1` | Wave 0 | pending |
+| 01-02-02 | 02 | 2 | CONF-03 | unit | `go test ./server/ -run TestObsidianSetup -count=1` | Wave 0 | pending |
+| 01-02-03 | 02 | 2 | (infra) | unit | `go test ./server/plane/ -count=1` | Wave 0 | pending |
+| 01-02-04 | 02 | 2 | (infra) | unit | `go test ./server/store/ -count=1` | Wave 0 | pending |
+| 01-03-01 | 03 | 3 | CREA-01 | unit+integration | `go test ./server/ -run TestCreateTask -count=1` | Wave 0 | pending |
+| 01-03-02 | 03 | 3 | CREA-04 | unit | `go test ./server/ -run TestCreateTaskConfirmation -count=1` | Wave 0 | pending |
+| 01-03-03 | 03 | 3 | QERY-01 | unit | `go test ./server/ -run TestPlaneMine -count=1` | Wave 0 | pending |
+| 01-03-04 | 03 | 3 | QERY-02 | unit | `go test ./server/ -run TestPlaneStatus -count=1` | Wave 0 | pending |
 
 *Status: pending / green / red / flaky*
 
@@ -54,13 +58,15 @@ created: 2026-03-17
 
 ## Wave 0 Requirements
 
-- [ ] `server/plugin_test.go` — covers CONF-01, CONF-05 (OnActivate, config loading)
-- [ ] `server/command_test.go` — covers CONF-02, CONF-03, CONF-04, QERY-01, QERY-02 (command routing + handlers)
-- [ ] `server/dialog_test.go` — covers CREA-01, CREA-04 (dialog open + submission)
-- [ ] `server/plane/client_test.go` — covers Plane API client unit tests with HTTP mocks
-- [ ] `server/store/store_test.go` — covers KV store operations
-- [ ] `server/testutil/` — shared test helpers (mock Plane server, mock API)
-- [ ] Mattermost `plugintest.API` mock setup in test helpers
+- [x] `server/testutil/helpers.go` — shared test setup (mock API, test config factory)
+- [x] `server/testutil/mock_plane.go` — mock Plane HTTP server with configurable responses
+- [x] `server/plugin_test.go` — covers CONF-01, CONF-05 (OnActivate, config loading)
+- [x] `server/command_test.go` — covers CONF-02, CONF-03, CONF-04, QERY-01, QERY-02 (command routing + handlers)
+- [x] `server/dialog_test.go` — covers CREA-01, CREA-04 (dialog open + submission)
+- [x] `server/plane/client_test.go` — covers Plane API client unit tests with HTTP mocks
+- [x] `server/store/store_test.go` — covers KV store operations
+
+All Wave 0 files are created by Plan 01-00 (wave: 0). Test stubs use `t.Skip("TODO: ...")` and are fleshed out by the corresponding implementation plans (01-01, 01-02, 01-03).
 
 ---
 
@@ -76,11 +82,11 @@ created: 2026-03-17
 
 ## Validation Sign-Off
 
-- [ ] All tasks have `<automated>` verify or Wave 0 dependencies
-- [ ] Sampling continuity: no 3 consecutive tasks without automated verify
-- [ ] Wave 0 covers all MISSING references
-- [ ] No watch-mode flags
-- [ ] Feedback latency < 15s
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] All tasks have `<automated>` verify or Wave 0 dependencies
+- [x] Sampling continuity: no 3 consecutive tasks without automated verify
+- [x] Wave 0 covers all MISSING references
+- [x] No watch-mode flags
+- [x] Feedback latency < 15s
+- [x] `nyquist_compliant: true` set in frontmatter
 
 **Approval:** pending
