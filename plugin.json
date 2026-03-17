@@ -13,6 +13,9 @@
             "darwin-arm64": "server/dist/plugin-darwin-arm64"
         }
     },
+    "webapp": {
+        "bundle_path": "webapp/dist/main.js"
+    },
     "settings_schema": {
         "header": "Configure the connection to your Plane instance. All three fields are required for the plugin to function.",
         "footer": "Need help? Visit the [plugin documentation](https://github.com/klab/mattermost-plugin-mcc).",

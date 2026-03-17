@@ -31,6 +31,9 @@ func (p *Plugin) initAPI() {
 	s.HandleFunc("/select/members", p.mattermostAuthMiddleware(p.handleSelectMembers)).Methods("GET")
 	s.HandleFunc("/select/labels", p.mattermostAuthMiddleware(p.handleSelectLabels)).Methods("GET")
 
+	// Context menu action handler
+	s.HandleFunc("/action/create-task-from-message", p.mattermostAuthMiddleware(p.handleCreateTaskFromMessage)).Methods("POST")
+
 	// Dialog submission handlers
 	s.HandleFunc("/dialog/obsidian-setup", p.handleObsidianSetupDialog).Methods("POST")
 	s.HandleFunc("/dialog/create-task", p.handleCreateTaskDialog).Methods("POST")

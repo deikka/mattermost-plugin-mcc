@@ -17,13 +17,18 @@ build:
 	GOOS=$(GOOS_DARWIN) GOARCH=$(GOARCH_AMD64) $(GO) build -o server/dist/plugin-darwin-amd64 ./server
 	GOOS=$(GOOS_DARWIN) GOARCH=$(GOARCH_ARM64) $(GO) build -o server/dist/plugin-darwin-arm64 ./server
 
+## webapp: Build the webapp plugin component
+webapp:
+	cd webapp && npm install --no-audit --no-fund && npm run build
+
 ## bundle: Build and package the plugin as a tar.gz bundle
-bundle: build
+bundle: build webapp
 	rm -f $(BUNDLE_NAME)
 	tar -czf $(BUNDLE_NAME) \
 		plugin.json \
 		assets/ \
-		server/dist/
+		server/dist/ \
+		webapp/dist/
 
 ## test: Run all tests
 test:
