@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: completed
-stopped_at: Completed 02-00-PLAN.md
-last_updated: "2026-03-17T09:21:58.966Z"
+stopped_at: Completed 02-01-PLAN.md
+last_updated: "2026-03-17T09:23:28.390Z"
 last_activity: 2026-03-17 -- Plan 02-02 completed (Plane link unfurling via MessageHasBeenPosted)
 progress:
   total_phases: 3
   completed_phases: 1
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 7
   percent: 62
 ---
 
@@ -84,6 +84,10 @@ Recent decisions affecting current work:
 - [02-02]: Assignee resolved via cached ListWorkspaceMembers (not extra API call per user)
 - [02-02]: GetWorkItem uses expand=state_detail,project_detail for enriched response
 - [02-02]: Bot posts skipped via UserId comparison to prevent infinite unfurl loops
+- [02-01]: Binding suffix "(Proyecto: X)" appended to ephemeral responses for binding-aware commands
+- [02-01]: openCreateTaskDialogWithContext designed with preTitle, preDescription, binding, sourcePostID params
+- [02-01]: source_post_id passed via callback URL query param for :memo: reaction on source messages
+- [02-01]: Binding-aware commands check binding first, silently fall back when unbound
 
 ### Pending Todos
 
@@ -97,6 +101,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T09:21:58.963Z
-Stopped at: Completed 02-00-PLAN.md
+Last session: 2026-03-17T09:23:28.387Z
+Stopped at: Completed 02-01-PLAN.md
 Resume file: None
