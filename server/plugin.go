@@ -11,6 +11,7 @@ import (
 	"github.com/mattermost/mattermost/server/public/model"
 	"github.com/mattermost/mattermost/server/public/plugin"
 	"github.com/mattermost/mattermost/server/public/pluginapi"
+	"github.com/mattermost/mattermost/server/public/pluginapi/cluster"
 	"github.com/pkg/errors"
 
 	"github.com/klab/mattermost-plugin-mcc/server/plane"
@@ -29,6 +30,7 @@ type Plugin struct {
 	router      *mux.Router
 	planeClient *plane.Client
 	store       *store.Store
+	digestJob   *cluster.Job
 }
 
 // OnActivate is invoked when the plugin is activated. If an error is returned, the plugin
@@ -61,9 +63,20 @@ func (p *Plugin) OnActivate() error {
 	// Initialize HTTP router
 	p.initRouter()
 
+	// Start digest scheduler (non-critical -- don't fail activation)
+	if err := p.startDigestScheduler(); err != nil {
+		p.API.LogError("Failed to start digest scheduler", "error", err.Error())
+	}
+
 	// Non-blocking health check (don't block activation on external service)
 	go p.validatePlaneConnection()
 
+	return nil
+}
+
+// OnDeactivate is invoked when the plugin is deactivated.
+func (p *Plugin) OnDeactivate() error {
+	p.stopDigestScheduler()
 	return nil
 }
 

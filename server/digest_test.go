@@ -14,10 +14,11 @@ import (
 
 	"github.com/klab/mattermost-plugin-mcc/server/plane"
 	"github.com/klab/mattermost-plugin-mcc/server/store"
+	"github.com/klab/mattermost-plugin-mcc/server/testutil"
 )
 
-// setupDigestTestPlugin creates a Plugin with mock API, store, and planeClient for digest tests.
-func setupDigestTestPlugin(t *testing.T) (*Plugin, *plugintest.API) {
+// setupDigestTestPlugin creates a Plugin with mock API, store, and a mock Plane server for digest tests.
+func setupDigestTestPlugin(t *testing.T) (*Plugin, *plugintest.API, *testutil.MockPlaneServer) {
 	t.Helper()
 
 	api := &plugintest.API{}
@@ -29,13 +30,22 @@ func setupDigestTestPlugin(t *testing.T) (*Plugin, *plugintest.API) {
 	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Maybe()
 	api.On("LogError", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 
+	mockServer := testutil.NewMockPlaneServer(t)
+
 	p := &Plugin{}
 	p.SetAPI(api)
 	p.botUserID = "bot-user-id"
 	p.store = store.New(api)
-	p.planeClient = plane.NewClient("https://plane.example.com", "test-key", "test-workspace")
+	p.planeClient = plane.NewClient(mockServer.URL(), testutil.TestPlaneAPIKey, testutil.TestPlaneWorkspace)
 
-	return p, api
+	// Set configuration so buildDigestPost can construct URLs
+	p.configuration = &configuration{
+		PlaneURL:       mockServer.URL(),
+		PlaneAPIKey:    testutil.TestPlaneAPIKey,
+		PlaneWorkspace: testutil.TestPlaneWorkspace,
+	}
+
+	return p, api, mockServer
 }
 
 // sampleWorkItems returns a set of work items with mixed state groups for testing.
@@ -51,7 +61,7 @@ func sampleWorkItems() []plane.WorkItem {
 }
 
 func TestDigestExecution_Daily(t *testing.T) {
-	p, api := setupDigestTestPlugin(t)
+	p, api, _ := setupDigestTestPlugin(t)
 
 	channelID := "channel-daily"
 	now := time.Now()
@@ -74,10 +84,10 @@ func TestDigestExecution_Daily(t *testing.T) {
 	// No previous digest run (never posted)
 	api.On("KVGet", "digest_last_"+channelID).Return(nil, nil)
 
-	// Channel is bound to a project
+	// Channel is bound to a project (use proj-uuid-001 from MockPlaneServer defaults)
 	binding := &store.ChannelProjectBinding{
-		ProjectID:   "proj-1",
-		ProjectName: "Alpha",
+		ProjectID:   "proj-uuid-001",
+		ProjectName: "Backend",
 		BoundBy:     "user-1",
 		BoundAt:     1710000000,
 	}
@@ -89,7 +99,7 @@ func TestDigestExecution_Daily(t *testing.T) {
 		return post.ChannelId == channelID &&
 			post.UserId == "bot-user-id" &&
 			strings.Contains(post.Message, "Resumen del Proyecto") &&
-			strings.Contains(post.Message, "Alpha")
+			strings.Contains(post.Message, "Backend")
 	})).Return(&model.Post{}, nil)
 
 	// Save last digest timestamp
@@ -106,7 +116,7 @@ func TestDigestExecution_Daily(t *testing.T) {
 }
 
 func TestDigestExecution_NotDueYet(t *testing.T) {
-	p, api := setupDigestTestPlugin(t)
+	p, api, _ := setupDigestTestPlugin(t)
 
 	channelID := "channel-not-due"
 	now := time.Now()
@@ -138,7 +148,7 @@ func TestDigestExecution_NotDueYet(t *testing.T) {
 }
 
 func TestDigestContent(t *testing.T) {
-	p, _ := setupDigestTestPlugin(t)
+	p, _, _ := setupDigestTestPlugin(t)
 
 	binding := &store.ChannelProjectBinding{
 		ProjectID:   "proj-1",
@@ -157,7 +167,7 @@ func TestDigestContent(t *testing.T) {
 	require.Contains(t, content, "En Progreso")
 	require.Contains(t, content, "Hecho")
 	require.Contains(t, content, "Progreso:")
-	require.Contains(t, content, "plane.example.com")
+	require.Contains(t, content, "proj-1")
 	require.Contains(t, content, "/task plane digest off")
 
 	// Verify counts are correct: 2 completed, 2 started, 2 open (1 backlog + 1 unstarted)

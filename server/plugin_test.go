@@ -57,9 +57,12 @@ func setupActivatedPlugin(t *testing.T) (*Plugin, *plugintest.API) {
 	api.On("EnsureBotUser", mock.AnythingOfType("*model.Bot")).
 		Return("bot-user-id", nil)
 
-	// cluster.Mutex for bot ensure (KV operations)
+	// cluster.Mutex and cluster.Schedule KV operations
 	api.On("KVSetWithOptions", mock.Anything, mock.Anything, mock.Anything).
 		Return(true, nil).Maybe()
+	api.On("KVGet", mock.Anything).Return(nil, nil).Maybe()
+	api.On("KVDelete", mock.Anything).Return(nil).Maybe()
+	api.On("KVList", mock.Anything, mock.Anything).Return([]string{}, nil).Maybe()
 
 	// RegisterCommand
 	api.On("RegisterCommand", mock.AnythingOfType("*model.Command")).Return(nil)
@@ -107,6 +110,7 @@ func TestOnActivate(t *testing.T) {
 
 	err := p.OnActivate()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = p.OnDeactivate() })
 
 	// Verify bot was created
 	assert.Equal(t, "bot-user-id", p.botUserID)
@@ -126,6 +130,7 @@ func TestOnActivateBotCreation(t *testing.T) {
 
 	err := p.OnActivate()
 	require.NoError(t, err)
+	t.Cleanup(func() { _ = p.OnDeactivate() })
 
 	// Verify bot was created with correct params
 	api.AssertCalled(t, "EnsureBotUser", mock.MatchedBy(func(bot *model.Bot) bool {
