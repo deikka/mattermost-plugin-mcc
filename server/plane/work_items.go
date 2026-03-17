@@ -54,6 +54,28 @@ func (c *Client) ListWorkItems(projectID, assigneeID string) ([]WorkItem, error)
 	return workItems, nil
 }
 
+// GetWorkItem fetches a single work item by project ID and work item ID.
+// Uses expand params to include state and project detail fields.
+// No caching -- always returns fresh data.
+func (c *Client) GetWorkItem(projectID, workItemID string) (*WorkItem, error) {
+	path := fmt.Sprintf("/projects/%s/work-items/%s/?expand=state_detail,project_detail", projectID, workItemID)
+	resp, err := c.doRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("get work item: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, parseAPIError(resp)
+	}
+
+	var workItem WorkItem
+	if err := json.NewDecoder(resp.Body).Decode(&workItem); err != nil {
+		return nil, fmt.Errorf("decode work item response: %w", err)
+	}
+	return &workItem, nil
+}
+
 // ListProjectWorkItems returns ALL work items in a project (no assignee filter).
 // Used by /task plane status for project-wide counts.
 // No caching -- always returns fresh data.
