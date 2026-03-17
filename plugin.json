@@ -45,6 +45,15 @@
                 "help_text": "Workspace slug from your Plane URL (e.g., if your Plane URL is plane.example.com/my-team, the slug is 'my-team').",
                 "placeholder": "my-team",
                 "default": ""
+            },
+            {
+                "key": "PlaneWebhookSecret",
+                "display_name": "Plane Webhook Secret",
+                "type": "text",
+                "help_text": "HMAC secret used to verify incoming Plane webhooks. Must match the secret configured in Plane workspace settings > Webhooks.",
+                "placeholder": "",
+                "default": "",
+                "secret": true
             }
         ]
     }

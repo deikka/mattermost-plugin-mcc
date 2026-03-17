@@ -143,6 +143,7 @@ func (s *Store) GetChannelBinding(channelID string) (*ChannelProjectBinding, err
 }
 
 // SaveChannelBinding stores the project binding for a Mattermost channel ID.
+// Also maintains the reverse index (project -> channels).
 func (s *Store) SaveChannelBinding(channelID string, binding *ChannelProjectBinding) error {
 	data, err := json.Marshal(binding)
 	if err != nil {
@@ -152,14 +153,35 @@ func (s *Store) SaveChannelBinding(channelID string, binding *ChannelProjectBind
 	if appErr := s.api.KVSet(prefixChannelProject+channelID, data); appErr != nil {
 		return fmt.Errorf("KVSet failed: %s", appErr.Error())
 	}
+
+	// Maintain reverse index
+	if err := s.AddProjectChannel(binding.ProjectID, channelID); err != nil {
+		return fmt.Errorf("update reverse index: %w", err)
+	}
+
 	return nil
 }
 
 // DeleteChannelBinding removes the project binding for a Mattermost channel ID.
+// Also maintains the reverse index (project -> channels).
 func (s *Store) DeleteChannelBinding(channelID string) error {
+	// Read existing binding to get projectID for reverse index
+	binding, err := s.GetChannelBinding(channelID)
+	if err != nil {
+		return err
+	}
+
 	if appErr := s.api.KVDelete(prefixChannelProject + channelID); appErr != nil {
 		return fmt.Errorf("KVDelete failed: %s", appErr.Error())
 	}
+
+	// Maintain reverse index if binding existed
+	if binding != nil {
+		if err := s.RemoveProjectChannel(binding.ProjectID, channelID); err != nil {
+			return fmt.Errorf("update reverse index: %w", err)
+		}
+	}
+
 	return nil
 }
 
@@ -170,4 +192,189 @@ func (s *Store) IsPlaneConnected(mmUserID string) (bool, error) {
 		return false, err
 	}
 	return mapping != nil, nil
+}
+
+// === Phase 3: Notifications + Automation ===
+
+const (
+	// prefixNotifyConfig is the KV store key prefix for channel notification settings.
+	prefixNotifyConfig = "notify_config_"
+
+	// prefixDigestConfig is the KV store key prefix for channel digest settings.
+	prefixDigestConfig = "digest_config_"
+
+	// prefixProjectChannels is the KV store key prefix for the reverse index (project -> channels).
+	prefixProjectChannels = "project_channels_"
+
+	// prefixWebhookDedup is the KV store key prefix for webhook delivery deduplication.
+	prefixWebhookDedup = "webhook_dedup_"
+
+	// prefixWorkItemState is the KV store key prefix for cached work item state.
+	prefixWorkItemState = "work_item_state_"
+
+	// prefixPluginAction is the KV store key prefix for tracking plugin-originated actions.
+	prefixPluginAction = "plugin_action_"
+
+	// prefixDigestLast is the KV store key prefix for the last digest run timestamp.
+	prefixDigestLast = "digest_last_"
+)
+
+// NotificationConfig stores per-channel notification settings.
+type NotificationConfig struct {
+	Enabled   bool   `json:"enabled"`
+	UpdatedBy string `json:"updated_by"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+// DigestConfig stores per-channel digest settings.
+type DigestConfig struct {
+	Frequency string `json:"frequency"` // "daily", "weekly", "off"
+	Hour      int    `json:"hour"`      // 0-23, default 9
+	Weekday   int    `json:"weekday"`   // 0=Sunday..6=Saturday (only for weekly)
+	UpdatedBy string `json:"updated_by"`
+	UpdatedAt int64  `json:"updated_at"`
+}
+
+// WorkItemStateCache stores a cached snapshot of a work item's state.
+type WorkItemStateCache struct {
+	StateGroup string `json:"state_group"`
+	StateName  string `json:"state_name"`
+	CachedAt   int64  `json:"cached_at"`
+}
+
+// GetNotificationConfig retrieves the notification config for a channel.
+// Returns nil, nil if no config exists.
+func (s *Store) GetNotificationConfig(channelID string) (*NotificationConfig, error) {
+	data, appErr := s.api.KVGet(prefixNotifyConfig + channelID)
+	if appErr != nil {
+		return nil, fmt.Errorf("KVGet failed: %s", appErr.Error())
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	var config NotificationConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("unmarshal NotificationConfig: %w", err)
+	}
+	return &config, nil
+}
+
+// SaveNotificationConfig stores the notification config for a channel.
+func (s *Store) SaveNotificationConfig(channelID string, config *NotificationConfig) error {
+	data, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("marshal NotificationConfig: %w", err)
+	}
+
+	if appErr := s.api.KVSet(prefixNotifyConfig+channelID, data); appErr != nil {
+		return fmt.Errorf("KVSet failed: %s", appErr.Error())
+	}
+	return nil
+}
+
+// GetDigestConfig retrieves the digest config for a channel.
+// Returns nil, nil if no config exists.
+func (s *Store) GetDigestConfig(channelID string) (*DigestConfig, error) {
+	data, appErr := s.api.KVGet(prefixDigestConfig + channelID)
+	if appErr != nil {
+		return nil, fmt.Errorf("KVGet failed: %s", appErr.Error())
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	var config DigestConfig
+	if err := json.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("unmarshal DigestConfig: %w", err)
+	}
+	return &config, nil
+}
+
+// SaveDigestConfig stores the digest config for a channel.
+func (s *Store) SaveDigestConfig(channelID string, config *DigestConfig) error {
+	data, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("marshal DigestConfig: %w", err)
+	}
+
+	if appErr := s.api.KVSet(prefixDigestConfig+channelID, data); appErr != nil {
+		return fmt.Errorf("KVSet failed: %s", appErr.Error())
+	}
+	return nil
+}
+
+// GetProjectChannels retrieves the list of channel IDs bound to a project (reverse index).
+// Returns nil, nil if no channels are bound.
+func (s *Store) GetProjectChannels(projectID string) ([]string, error) {
+	data, appErr := s.api.KVGet(prefixProjectChannels + projectID)
+	if appErr != nil {
+		return nil, fmt.Errorf("KVGet failed: %s", appErr.Error())
+	}
+	if data == nil {
+		return nil, nil
+	}
+
+	var channels []string
+	if err := json.Unmarshal(data, &channels); err != nil {
+		return nil, fmt.Errorf("unmarshal project channels: %w", err)
+	}
+	return channels, nil
+}
+
+// SaveProjectChannels stores the list of channel IDs bound to a project (reverse index).
+func (s *Store) SaveProjectChannels(projectID string, channelIDs []string) error {
+	data, err := json.Marshal(channelIDs)
+	if err != nil {
+		return fmt.Errorf("marshal project channels: %w", err)
+	}
+
+	if appErr := s.api.KVSet(prefixProjectChannels+projectID, data); appErr != nil {
+		return fmt.Errorf("KVSet failed: %s", appErr.Error())
+	}
+	return nil
+}
+
+// AddProjectChannel adds a channel to the reverse index for a project.
+// If the channel is already present, no duplicate is added.
+func (s *Store) AddProjectChannel(projectID, channelID string) error {
+	channels, err := s.GetProjectChannels(projectID)
+	if err != nil {
+		return err
+	}
+
+	// Check for duplicate
+	for _, ch := range channels {
+		if ch == channelID {
+			return nil
+		}
+	}
+
+	channels = append(channels, channelID)
+	return s.SaveProjectChannels(projectID, channels)
+}
+
+// RemoveProjectChannel removes a channel from the reverse index for a project.
+// If the list becomes empty, the key is deleted.
+func (s *Store) RemoveProjectChannel(projectID, channelID string) error {
+	channels, err := s.GetProjectChannels(projectID)
+	if err != nil {
+		return err
+	}
+
+	filtered := make([]string, 0, len(channels))
+	for _, ch := range channels {
+		if ch != channelID {
+			filtered = append(filtered, ch)
+		}
+	}
+
+	if len(filtered) == 0 {
+		if appErr := s.api.KVDelete(prefixProjectChannels + projectID); appErr != nil {
+			return fmt.Errorf("KVDelete failed: %s", appErr.Error())
+		}
+		return nil
+	}
+
+	return s.SaveProjectChannels(projectID, filtered)
 }

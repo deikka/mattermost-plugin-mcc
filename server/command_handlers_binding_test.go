@@ -29,6 +29,13 @@ func TestPlaneLinkSuccess(t *testing.T) {
 	api.On("KVSet", mock.MatchedBy(func(key string) bool {
 		return strings.HasPrefix(key, "channel_project_")
 	}), mock.AnythingOfType("[]uint8")).Return(nil)
+	// Reverse index: AddProjectChannel called by SaveChannelBinding
+	api.On("KVGet", mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, "project_channels_")
+	})).Return(nil, nil).Maybe()
+	api.On("KVSet", mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, "project_channels_")
+	}), mock.AnythingOfType("[]uint8")).Return(nil).Maybe()
 	api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
 		return post.ChannelId == "channel-1" &&
 			post.UserId == "bot-user-id" &&
@@ -81,6 +88,10 @@ func TestPlaneUnlinkSuccess(t *testing.T) {
 	bindingData, _ := json.Marshal(binding)
 	api.On("KVGet", "channel_project_channel-1").Return(bindingData, nil)
 	api.On("KVDelete", "channel_project_channel-1").Return(nil)
+	// Reverse index: RemoveProjectChannel called by DeleteChannelBinding
+	channelsData, _ := json.Marshal([]string{"channel-1"})
+	api.On("KVGet", "project_channels_proj-1").Return(channelsData, nil).Maybe()
+	api.On("KVDelete", "project_channels_proj-1").Return(nil).Maybe()
 	api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
 		return post.ChannelId == "channel-1" && strings.Contains(post.Message, "desvinculado")
 	})).Return(&model.Post{}, nil)

@@ -14,9 +14,10 @@ import (
 // strategy used in this plugin is to guard a pointer to the configuration, and clone the entire
 // struct whenever it changes.
 type configuration struct {
-	PlaneURL       string `json:"PlaneURL"`
-	PlaneAPIKey    string `json:"PlaneAPIKey"`
-	PlaneWorkspace string `json:"PlaneWorkspace"`
+	PlaneURL            string `json:"PlaneURL"`
+	PlaneAPIKey         string `json:"PlaneAPIKey"`
+	PlaneWorkspace      string `json:"PlaneWorkspace"`
+	PlaneWebhookSecret  string `json:"PlaneWebhookSecret"`
 }
 
 // Clone shallow copies the configuration.
