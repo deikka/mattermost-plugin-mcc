@@ -319,3 +319,51 @@ func TestPlaneClientUpdateConfig(t *testing.T) {
 	assert.Equal(t, "new-key", apiKey)
 	assert.Equal(t, "new-ws", workspace)
 }
+
+// === Plan 02-02 Tests: GetWorkItem ===
+
+func TestGetWorkItem(t *testing.T) {
+	_, client := testPlaneServer(t, func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Contains(t, r.URL.Path, "/projects/proj-abc/work-items/wi-def/")
+
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(WorkItem{
+			ID:          "wi-def",
+			Name:        "Fix login page",
+			State:       "state-1",
+			StateName:   "In Progress",
+			StateGroup:  "started",
+			Priority:    "high",
+			ProjectID:   "proj-abc",
+			ProjectName: "Backend",
+			Assignees:   []string{"user-1"},
+			SequenceID:  42,
+		})
+	})
+
+	item, err := client.GetWorkItem("proj-abc", "wi-def")
+	require.NoError(t, err)
+	assert.Equal(t, "wi-def", item.ID)
+	assert.Equal(t, "Fix login page", item.Name)
+	assert.Equal(t, "In Progress", item.StateName)
+	assert.Equal(t, "started", item.StateGroup)
+	assert.Equal(t, "high", item.Priority)
+	assert.Equal(t, "Backend", item.ProjectName)
+	assert.Equal(t, []string{"user-1"}, item.Assignees)
+	assert.Equal(t, 42, item.SequenceID)
+}
+
+func TestGetWorkItemNotFound(t *testing.T) {
+	_, client := testPlaneServer(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"error": "Not found"}`))
+	})
+
+	item, err := client.GetWorkItem("proj-abc", "nonexistent-id")
+	assert.Nil(t, item)
+	require.Error(t, err)
+	apiErr, ok := err.(*APIError)
+	require.True(t, ok, "expected *APIError, got %T", err)
+	assert.Equal(t, http.StatusNotFound, apiErr.StatusCode)
+}
