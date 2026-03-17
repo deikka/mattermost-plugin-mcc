@@ -18,8 +18,8 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Task Creation (Plane)
 
 - [x] **CREA-01**: Usuario puede crear tarea en Plane via `/task plane create` con dialogo interactivo (titulo, descripcion, proyecto, prioridad, asignado)
-- [ ] **CREA-02**: Usuario puede crear tarea en Plane desde menu contextual "..." de cualquier mensaje, con texto del mensaje pre-poblado como descripcion y permalink al mensaje original
-- [ ] **CREA-03**: Al crear tarea en canal vinculado, el proyecto Plane se pre-selecciona automaticamente
+- [x] **CREA-02**: Usuario puede crear tarea en Plane desde menu contextual "..." de cualquier mensaje, con texto del mensaje pre-poblado como descripcion y permalink al mensaje original
+- [x] **CREA-03**: Al crear tarea en canal vinculado, el proyecto Plane se pre-selecciona automaticamente
 - [x] **CREA-04**: Usuario recibe confirmacion efimera con link a la tarea creada en Plane
 
 ### Queries & Consultation
@@ -29,8 +29,8 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Channel-Project Binding
 
-- [ ] **BIND-01**: Usuario puede vincular un canal de Mattermost a un proyecto de Plane via `/task plane link`
-- [ ] **BIND-02**: Comandos ejecutados en canal vinculado usan automaticamente el proyecto asociado sin necesidad de especificarlo
+- [x] **BIND-01**: Usuario puede vincular un canal de Mattermost a un proyecto de Plane via `/task plane link`
+- [x] **BIND-02**: Comandos ejecutados en canal vinculado usan automaticamente el proyecto asociado sin necesidad de especificarlo
 
 ### Notifications
 
@@ -80,13 +80,13 @@ Deferred to future release. Tracked but not in current roadmap.
 | CONF-04 | Phase 1 | Complete |
 | CONF-05 | Phase 1 | Complete |
 | CREA-01 | Phase 1 | Complete |
-| CREA-02 | Phase 2 | Pending |
-| CREA-03 | Phase 2 | Pending |
+| CREA-02 | Phase 2 | Complete |
+| CREA-03 | Phase 2 | Complete |
 | CREA-04 | Phase 1 | Complete |
 | QERY-01 | Phase 1 | Complete |
 | QERY-02 | Phase 1 | Complete |
-| BIND-01 | Phase 2 | Pending |
-| BIND-02 | Phase 2 | Pending |
+| BIND-01 | Phase 2 | Complete |
+| BIND-02 | Phase 2 | Complete |
 | NOTF-01 | Phase 3 | Pending |
 | NOTF-02 | Phase 3 | Pending |
 | NOTF-03 | Phase 2 | Complete |

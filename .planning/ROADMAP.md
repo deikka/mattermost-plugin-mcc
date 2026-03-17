@@ -45,7 +45,7 @@ Plans:
   2. Usuario puede crear tarea desde el menu contextual "..." de cualquier mensaje, con el texto pre-poblado como descripcion y permalink al mensaje original
   3. Al crear tarea en canal vinculado (via slash command o menu contextual), el proyecto Plane se pre-selecciona automaticamente
   4. Al pegar una URL de tarea de Plane en chat, se muestra preview inline con titulo, estado y asignado
-**Plans:** 4 plans
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] 02-00-PLAN.md — Wave 0: Test stubs for Phase 2 (store binding, command handlers, link unfurling, GetWorkItem)
@@ -73,5 +73,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation + Core Plane Commands | 4/4 | Complete | 2026-03-17 |
-| 2. Channel Intelligence + Context Menu | 0/4 | In progress | - |
+| 2. Channel Intelligence + Context Menu | 2/4 | In Progress|  |
 | 3. Notifications + Automation | 0/1 | Not started | - |
