@@ -35,7 +35,7 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Notifications
 
 - [x] **NOTF-01**: Cambios en tareas de Plane (estado, asignacion, comentarios) se publican automaticamente en el canal vinculado via webhooks
-- [ ] **NOTF-02**: Bot publica resumen periodico (configurable: diario/semanal) del estado del proyecto en el canal vinculado
+- [x] **NOTF-02**: Bot publica resumen periodico (configurable: diario/semanal) del estado del proyecto en el canal vinculado
 - [x] **NOTF-03**: Al pegar URL de tarea de Plane en chat, se muestra preview inline con titulo, estado y asignado (link unfurling)
 
 ## v2 Requirements
@@ -88,7 +88,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | BIND-01 | Phase 2 | Complete |
 | BIND-02 | Phase 2 | Complete |
 | NOTF-01 | Phase 3 | Complete |
-| NOTF-02 | Phase 3 | Pending |
+| NOTF-02 | Phase 3 | Complete |
 | NOTF-03 | Phase 2 | Complete |
 
 **Coverage:**

@@ -60,12 +60,12 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Cambios en tareas de Plane (estado, asignacion, comentarios) se publican automaticamente en el canal vinculado correspondiente
   2. Bot publica resumen periodico configurable (diario/semanal) del estado del proyecto en el canal vinculado
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans executed
 
 Plans:
 - [x] 03-00-PLAN.md — Wave 0: Types, store extensions (reverse index, notification/digest config), webhook secret config, RED test stubs
-- [ ] 03-01-PLAN.md — Webhook receiver (HMAC verification, dedup, event routing), notification cards (state/assignee/comment), /task plane notifications on|off
-- [ ] 03-02-PLAN.md — Digest scheduler (cluster.Schedule), /task plane digest daily|weekly|off, dashboard-style project summary posts
+- [x] 03-01-PLAN.md — Webhook receiver (HMAC verification, dedup, event routing), notification cards (state/assignee/comment), /task plane notifications on|off
+- [x] 03-02-PLAN.md — Digest scheduler (cluster.Schedule), /task plane digest daily|weekly|off, dashboard-style project summary posts
 
 ## Progress
 
@@ -75,5 +75,5 @@ Phases execute in numeric order: 1 -> 2 -> 3
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation + Core Plane Commands | 4/4 | Complete | 2026-03-17 |
-| 2. Channel Intelligence + Context Menu | 3/4 | In Progress|  |
-| 3. Notifications + Automation | 2/3 | In Progress|  |
+| 2. Channel Intelligence + Context Menu | 3/4 | In Progress |  |
+| 3. Notifications + Automation | 3/3 | Complete | 2026-03-17 |
