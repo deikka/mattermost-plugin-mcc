@@ -167,6 +167,13 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 	p.handleLinkUnfurl(post)
 }
 
+// markPluginAction records that the plugin originated an action on a work item.
+// This prevents self-notification when Plane fires a webhook for the same action.
+// The entry expires after 5 minutes (300 seconds).
+func (p *Plugin) markPluginAction(workItemID string) {
+	_, _ = p.API.KVSetWithOptions("plugin_action_"+workItemID, []byte("1"), model.PluginKVSetOptions{ExpireInSeconds: 300})
+}
+
 func main() {
 	plugin.ClientMain(&Plugin{})
 }

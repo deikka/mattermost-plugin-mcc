@@ -100,6 +100,11 @@ func newPlaneCreateTestPlugin(t *testing.T) (*Plugin, *plugintest.API, *httptest
 	api.On("LogWarn", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Maybe()
 	api.On("LogError", mock.Anything, mock.Anything, mock.Anything).Maybe()
 
+	// markPluginAction calls KVSetWithOptions after successful CreateWorkItem
+	api.On("KVSetWithOptions", mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, "plugin_action_")
+	}), mock.AnythingOfType("[]uint8"), mock.AnythingOfType("model.PluginKVSetOptions")).Return(true, nil).Maybe()
+
 	p := &Plugin{}
 	p.SetAPI(api)
 	p.botUserID = "bot-user-id"

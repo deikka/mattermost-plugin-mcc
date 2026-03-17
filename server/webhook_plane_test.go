@@ -299,10 +299,13 @@ func TestWebhookIssueStateChange(t *testing.T) {
 	cachedData, _ := json.Marshal(cachedState)
 	api.On("KVGet", "work_item_state_issue-1").Return(cachedData, nil)
 
-	// Update state cache
+	// Assignee hash cache (no previous = first event for assignees)
+	api.On("KVGet", "work_item_assignees_issue-1").Return(nil, nil)
+
+	// Update state/assignee cache
 	api.On("KVSetWithOptions", mock.MatchedBy(func(key string) bool {
-		return key == "work_item_state_issue-1"
-	}), mock.AnythingOfType("[]uint8"), mock.AnythingOfType("model.PluginKVSetOptions")).Return(true, nil)
+		return strings.HasPrefix(key, "work_item_state_") || strings.HasPrefix(key, "work_item_assignees_")
+	}), mock.AnythingOfType("[]uint8"), mock.AnythingOfType("model.PluginKVSetOptions")).Return(true, nil).Maybe()
 
 	// CreatePost should be called with a state change card
 	api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
@@ -543,8 +546,12 @@ func TestWebhookNotificationsDisabled(t *testing.T) {
 	cachedState := &store.WorkItemStateCache{StateGroup: "backlog", StateName: "Backlog"}
 	cachedData, _ := json.Marshal(cachedState)
 	api.On("KVGet", "work_item_state_issue-disabled").Return(cachedData, nil)
+
+	// Assignee hash cache
+	api.On("KVGet", "work_item_assignees_issue-disabled").Return(nil, nil)
+
 	api.On("KVSetWithOptions", mock.MatchedBy(func(key string) bool {
-		return strings.HasPrefix(key, "work_item_state_")
+		return strings.HasPrefix(key, "work_item_state_") || strings.HasPrefix(key, "work_item_assignees_")
 	}), mock.AnythingOfType("[]uint8"), mock.AnythingOfType("model.PluginKVSetOptions")).Return(true, nil).Maybe()
 
 	req := httptest.NewRequest("POST", "/api/v1/webhook/plane", bytes.NewReader(body))

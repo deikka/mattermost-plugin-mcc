@@ -111,6 +111,9 @@ func handlePlaneCreate(p *Plugin, c *plugin.Context, args *model.CommandArgs, su
 			return p.respondEphemeral(args, "Error al comunicarse con Plane: "+err.Error()+". Intenta de nuevo.")
 		}
 
+		// Mark as plugin action to suppress self-notification via webhook
+		p.markPluginAction(workItem.ID)
+
 		workItemURL := p.planeClient.GetWorkItemURL(targetProject.Identifier, workItem.SequenceID)
 		msg := formatTaskCreatedMessage(title, targetProject.Name, workItemURL) + suffix
 		return p.respondEphemeral(args, msg)

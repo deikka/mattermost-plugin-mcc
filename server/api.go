@@ -24,6 +24,9 @@ type selectOption struct {
 // Mattermost strips the /plugins/{pluginID} prefix before calling ServeHTTP,
 // so routes are registered without that prefix.
 func (p *Plugin) initAPI() {
+	// Plane webhook endpoint (HMAC-authenticated, not Mattermost auth)
+	p.router.HandleFunc("/api/v1/webhook/plane", p.handlePlaneWebhook).Methods("POST")
+
 	s := p.router.PathPrefix("/api/v1").Subrouter()
 
 	// Dynamic select data sources for dialogs
@@ -262,6 +265,9 @@ func (p *Plugin) handleCreateTaskDialog(w http.ResponseWriter, r *http.Request) 
 		writeJSON(w, http.StatusOK, map[string]interface{}{})
 		return
 	}
+
+	// Mark as plugin action to suppress self-notification via webhook
+	p.markPluginAction(workItem.ID)
 
 	// Find project name and identifier from cached projects
 	projectName := projectID
