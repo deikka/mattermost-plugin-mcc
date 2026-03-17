@@ -63,7 +63,7 @@ Plans:
 **Plans:** 3 plans
 
 Plans:
-- [ ] 03-00-PLAN.md — Wave 0: Types, store extensions (reverse index, notification/digest config), webhook secret config, RED test stubs
+- [x] 03-00-PLAN.md — Wave 0: Types, store extensions (reverse index, notification/digest config), webhook secret config, RED test stubs
 - [ ] 03-01-PLAN.md — Webhook receiver (HMAC verification, dedup, event routing), notification cards (state/assignee/comment), /task plane notifications on|off
 - [ ] 03-02-PLAN.md — Digest scheduler (cluster.Schedule), /task plane digest daily|weekly|off, dashboard-style project summary posts
 
@@ -76,4 +76,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. Foundation + Core Plane Commands | 4/4 | Complete | 2026-03-17 |
 | 2. Channel Intelligence + Context Menu | 3/4 | In Progress|  |
-| 3. Notifications + Automation | 0/3 | Not started | - |
+| 3. Notifications + Automation | 1/3 | In Progress | - |
