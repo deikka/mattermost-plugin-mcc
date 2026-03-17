@@ -60,7 +60,7 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Cambios en tareas de Plane (estado, asignacion, comentarios) se publican automaticamente en el canal vinculado correspondiente
   2. Bot publica resumen periodico configurable (diario/semanal) del estado del proyecto en el canal vinculado
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 
 Plans:
 - [x] 03-00-PLAN.md — Wave 0: Types, store extensions (reverse index, notification/digest config), webhook secret config, RED test stubs
@@ -76,4 +76,4 @@ Phases execute in numeric order: 1 -> 2 -> 3
 |-------|----------------|--------|-----------|
 | 1. Foundation + Core Plane Commands | 4/4 | Complete | 2026-03-17 |
 | 2. Channel Intelligence + Context Menu | 3/4 | In Progress|  |
-| 3. Notifications + Automation | 1/3 | In Progress | - |
+| 3. Notifications + Automation | 2/3 | In Progress|  |

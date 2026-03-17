@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: in-progress
-stopped_at: Completed 03-00-PLAN.md
-last_updated: "2026-03-17T16:53:33Z"
-last_activity: 2026-03-17 -- Plan 03-00 completed (Wave 0 infrastructure for Phase 3)
+stopped_at: Completed 03-01-PLAN.md
+last_updated: "2026-03-17T17:17:23Z"
+last_activity: 2026-03-17 -- Plan 03-01 completed (Webhook handler, notification cards, on/off command)
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 11
-  completed_plans: 9
-  percent: 69
+  completed_plans: 10
+  percent: 77
 ---
 
 # Project State
@@ -26,18 +26,18 @@ See: .planning/PROJECT.md (updated 2026-03-16)
 ## Current Position
 
 Phase: 3 of 3 (Notifications + Automation)
-Plan: 1 of 3 in current phase
-Status: Plan 03-00 complete -- Wave 0 infrastructure
-Last activity: 2026-03-17 -- Plan 03-00 completed (Wave 0 infrastructure for Phase 3)
+Plan: 2 of 3 in current phase
+Status: Plan 03-01 complete -- Webhook handler and notifications
+Last activity: 2026-03-17 -- Plan 03-01 completed (Webhook handler, notification cards, on/off command)
 
-Progress: [██████▉░░░] 69%
+Progress: [████████░░] 77%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 10 min
-- Total execution time: 1.0 hours
+- Total plans completed: 7
+- Average duration: 11 min
+- Total execution time: 1.3 hours
 
 **By Phase:**
 
@@ -45,10 +45,10 @@ Progress: [██████▉░░░] 69%
 |-------|-------|-------|----------|
 | 1 | 4/4 | 42 min | 10 min |
 | 2 | 1/4 | 12 min | 12 min |
-| 3 | 1/3 | 7 min | 7 min |
+| 3 | 2/3 | 26 min | 13 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (8 min), 01-03 (8 min), 02-02 (12 min), 03-00 (7 min)
+- Last 5 plans: 01-03 (8 min), 02-02 (12 min), 03-00 (7 min), 03-01 (19 min)
 - Trend: Stable
 
 *Updated after each plan completion*
@@ -93,6 +93,11 @@ Recent decisions affecting current work:
 - [03-00]: HMAC verification is permissive when PlaneWebhookSecret is empty (accepts all)
 - [03-00]: Webhook dedup uses KVSetWithOptions with 1-hour TTL expiry
 - [03-00]: Webhook types use nested structs matching Plane's actual webhook JSON (separate from flat plane.WorkItem)
+- [03-01]: State change detected by comparing cached state group with current webhook state group
+- [03-01]: Assignee change detected via sorted ID hash comparison (SHA-512/256)
+- [03-01]: nil NotificationConfig treated as enabled (default on for bound channels)
+- [03-01]: Webhook route on main router (HMAC auth, not Mattermost auth subrouter)
+- [03-01]: markPluginAction in both dialog and inline create for self-notification suppression
 
 ### Pending Todos
 
@@ -106,6 +111,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-17T16:53:33Z
-Stopped at: Completed 03-00-PLAN.md
-Resume file: .planning/phases/03-notifications-automation/03-00-SUMMARY.md
+Last session: 2026-03-17T17:17:23Z
+Stopped at: Completed 03-01-PLAN.md
+Resume file: .planning/phases/03-notifications-automation/03-01-SUMMARY.md
