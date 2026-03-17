@@ -17,15 +17,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Task Creation (Plane)
 
-- [ ] **CREA-01**: Usuario puede crear tarea en Plane via `/task plane create` con dialogo interactivo (titulo, descripcion, proyecto, prioridad, asignado)
+- [x] **CREA-01**: Usuario puede crear tarea en Plane via `/task plane create` con dialogo interactivo (titulo, descripcion, proyecto, prioridad, asignado)
 - [ ] **CREA-02**: Usuario puede crear tarea en Plane desde menu contextual "..." de cualquier mensaje, con texto del mensaje pre-poblado como descripcion y permalink al mensaje original
 - [ ] **CREA-03**: Al crear tarea en canal vinculado, el proyecto Plane se pre-selecciona automaticamente
-- [ ] **CREA-04**: Usuario recibe confirmacion efimera con link a la tarea creada en Plane
+- [x] **CREA-04**: Usuario recibe confirmacion efimera con link a la tarea creada en Plane
 
 ### Queries & Consultation
 
-- [ ] **QERY-01**: Usuario puede ver sus tareas asignadas en Plane via `/task plane mine` (respuesta efimera)
-- [ ] **QERY-02**: Usuario puede ver resumen de estado de un proyecto Plane (open/in-progress/done) via `/task plane status`
+- [x] **QERY-01**: Usuario puede ver sus tareas asignadas en Plane via `/task plane mine` (respuesta efimera)
+- [x] **QERY-02**: Usuario puede ver resumen de estado de un proyecto Plane (open/in-progress/done) via `/task plane status`
 
 ### Channel-Project Binding
 
@@ -79,12 +79,12 @@ Deferred to future release. Tracked but not in current roadmap.
 | CONF-03 | Phase 1 | Complete |
 | CONF-04 | Phase 1 | Complete |
 | CONF-05 | Phase 1 | Complete |
-| CREA-01 | Phase 1 | Pending |
+| CREA-01 | Phase 1 | Complete |
 | CREA-02 | Phase 2 | Pending |
 | CREA-03 | Phase 2 | Pending |
-| CREA-04 | Phase 1 | Pending |
-| QERY-01 | Phase 1 | Pending |
-| QERY-02 | Phase 1 | Pending |
+| CREA-04 | Phase 1 | Complete |
+| QERY-01 | Phase 1 | Complete |
+| QERY-02 | Phase 1 | Complete |
 | BIND-01 | Phase 2 | Pending |
 | BIND-02 | Phase 2 | Pending |
 | NOTF-01 | Phase 3 | Pending |
