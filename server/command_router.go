@@ -12,14 +12,16 @@ type CommandHandlerFunc func(p *Plugin, c *plugin.Context, args *model.CommandAr
 
 // commandHandlers maps command keys to their handler functions.
 var commandHandlers = map[string]CommandHandlerFunc{
-	"plane/create":   handlePlaneCreate,
-	"plane/mine":     handlePlaneMine,
-	"plane/status":   handlePlaneStatus,
-	"plane/link":     handlePlaneLink,
-	"plane/unlink":   handlePlaneUnlink,
-	"connect":        handleConnect,
-	"obsidian/setup": handleObsidianSetup,
-	"help":           handleHelp,
+	"plane/create":        handlePlaneCreate,
+	"plane/mine":          handlePlaneMine,
+	"plane/status":        handlePlaneStatus,
+	"plane/link":          handlePlaneLink,
+	"plane/unlink":        handlePlaneUnlink,
+	"plane/notifications": handlePlaneNotifications,
+	"plane/digest":        handlePlaneDigest,
+	"connect":             handleConnect,
+	"obsidian/setup":      handleObsidianSetup,
+	"help":                handleHelp,
 }
 
 // commandAliases maps short-form command keys to their canonical forms.
@@ -29,6 +31,8 @@ var commandAliases = map[string]string{
 	"p/s": "plane/status",
 	"p/l": "plane/link",
 	"p/u": "plane/unlink",
+	"p/n": "plane/notifications",
+	"p/d": "plane/digest",
 }
 
 // ExecuteCommand routes slash commands to the appropriate handler.

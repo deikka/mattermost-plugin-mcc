@@ -35,6 +35,8 @@ const helpText = `**Comandos de Gestion de Tareas**
 - ` + "`/task plane status [detail] [proyecto]`" + ` -- Ver estado del proyecto (alias: ` + "`/task p s`" + `)
 - ` + "`/task plane link [proyecto]`" + ` -- Vincular canal a un proyecto de Plane (alias: ` + "`/task p l`" + `)
 - ` + "`/task plane unlink`" + ` -- Desvincular canal del proyecto de Plane (alias: ` + "`/task p u`" + `)
+- ` + "`/task plane notifications on|off`" + ` -- Activar/desactivar notificaciones de cambios de Plane en este canal (alias: ` + "`/task p n`" + `)
+- ` + "`/task plane digest daily|weekly|off [hora]`" + ` -- Configurar resumen periodico del proyecto en este canal (alias: ` + "`/task p d`" + `)
 
 **Configuracion**
 - ` + "`/task connect`" + ` -- Vincular tu cuenta de Mattermost con Plane
