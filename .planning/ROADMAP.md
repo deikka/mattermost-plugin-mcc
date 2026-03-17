@@ -12,7 +12,7 @@ Este roadmap lleva el plugin desde cero hasta un centro de comando funcional en 
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation + Core Plane Commands** - Plugin scaffold, configuracion, creacion y consulta de tareas en Plane via slash commands
+- [x] **Phase 1: Foundation + Core Plane Commands** - Plugin scaffold, configuracion, creacion y consulta de tareas en Plane via slash commands
 - [ ] **Phase 2: Channel Intelligence + Context Menu** - Vinculacion canal-proyecto, menu contextual en mensajes y link unfurling
 - [ ] **Phase 3: Notifications + Automation** - Webhooks de Plane hacia canales vinculados y resumenes periodicos
 
@@ -33,8 +33,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 - [x] 01-00-PLAN.md — Wave 0: Test infrastructure scaffolding (test helpers, mock Plane server, test stubs)
 - [x] 01-01-PLAN.md — Plugin scaffold, System Console config, bot account, command registration with autocomplete, /task help
-- [ ] 01-02-PLAN.md — Plane API client, KV store, cache, /task connect, /task obsidian setup, HTTP API endpoints
-- [ ] 01-03-PLAN.md — /task plane create (dialog + inline), /task plane mine, /task plane status, ephemeral confirmations
+- [x] 01-02-PLAN.md — Plane API client, KV store, cache, /task connect, /task obsidian setup, HTTP API endpoints
+- [x] 01-03-PLAN.md — /task plane create (dialog + inline), /task plane mine, /task plane status, ephemeral confirmations
 
 ### Phase 2: Channel Intelligence + Context Menu
 **Goal**: Canales de Mattermost funcionan como espacios de proyecto donde crear tareas es un clic desde cualquier mensaje, con contexto automatico del proyecto vinculado
@@ -70,6 +70,6 @@ Phases execute in numeric order: 1 -> 2 -> 3
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation + Core Plane Commands | 2/4 | In progress | - |
+| 1. Foundation + Core Plane Commands | 4/4 | Complete | 2026-03-17 |
 | 2. Channel Intelligence + Context Menu | 0/2 | Not started | - |
 | 3. Notifications + Automation | 0/1 | Not started | - |
