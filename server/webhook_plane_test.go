@@ -17,6 +17,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
+	"github.com/klab/mattermost-plugin-mcc/server/plane"
 	"github.com/klab/mattermost-plugin-mcc/server/store"
 )
 
@@ -98,6 +99,14 @@ func setupWebhookTestPlugin(t *testing.T) (*Plugin, *plugintest.API) {
 		PlaneWorkspace:     "test-workspace",
 		PlaneWebhookSecret: "test-secret",
 	}
+	// Use a local HTTP server for Plane API to avoid network timeouts in tests.
+	fakePlane := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"results":[]}`))
+	}))
+	t.Cleanup(fakePlane.Close)
+	p.planeClient = plane.NewClient(fakePlane.URL, "test-api-key", "test-workspace")
+	p.projectIdentifiers = make(map[string]string)
 	p.initRouter()
 
 	return p, api
@@ -151,6 +160,34 @@ func buildWebhookCommentPayload(t *testing.T, commentID, issueID, projectID, com
 	event := PlaneWebhookEvent{
 		Event:       "issue_comment",
 		Action:      "created",
+		WebhookID:   "wh-1",
+		WorkspaceID: "ws-1",
+		Data:        json.RawMessage(dataBytes),
+	}
+	body, _ := json.Marshal(event)
+	return body
+}
+
+// buildWebhookIssuePayloadFull creates a JSON body for a webhook issue event with full control
+// over priority and target_date fields.
+func buildWebhookIssuePayloadFull(t *testing.T, issueID, projectID, issueName string, state WebhookStateDetail, assignees []WebhookAssignee, priority string, targetDate *string) []byte {
+	t.Helper()
+
+	issueData := WebhookIssueData{
+		ID:         issueID,
+		Name:       issueName,
+		State:      state,
+		Assignees:  assignees,
+		Priority:   priority,
+		Project:    projectID,
+		SequenceID: 42,
+		TargetDate: targetDate,
+	}
+	dataBytes, _ := json.Marshal(issueData)
+
+	event := PlaneWebhookEvent{
+		Event:       "issue",
+		Action:      "updated",
 		WebhookID:   "wh-1",
 		WorkspaceID: "ws-1",
 		Data:        json.RawMessage(dataBytes),
@@ -449,6 +486,146 @@ func TestWebhookIssueComment(t *testing.T) {
 	api.AssertCalled(t, "CreatePost", mock.Anything)
 }
 
+func TestWebhookPriorityChange(t *testing.T) {
+	p, api := setupWebhookTestPlugin(t)
+
+	body := buildWebhookIssuePayloadFull(t, "issue-prio", "proj-1", "Optimize queries",
+		WebhookStateDetail{ID: "s1", Name: "In Progress", Group: "started"},
+		nil,
+		"urgent",
+		nil,
+	)
+	signature := computeTestHMAC(body, "test-secret")
+
+	// Dedup
+	api.On("KVGet", "webhook_dedup_delivery-prio").Return(nil, nil)
+	api.On("KVSetWithOptions", "webhook_dedup_delivery-prio", []byte("1"),
+		mock.AnythingOfType("model.PluginKVSetOptions")).Return(true, nil)
+
+	// No plugin action
+	api.On("KVGet", "plugin_action_issue-prio").Return(nil, nil)
+
+	// Bound channels
+	channelsData, _ := json.Marshal([]string{"channel-1"})
+	api.On("KVGet", "project_channels_proj-1").Return(channelsData, nil)
+
+	// Notification config: enabled
+	api.On("KVGet", "notify_config_channel-1").Return(nil, nil)
+
+	// Cached state: same state group (no state change) but different priority
+	cachedState := &store.WorkItemStateCache{
+		StateGroup: "started",
+		StateName:  "In Progress",
+		Priority:   "low",
+	}
+	cachedData, _ := json.Marshal(cachedState)
+	api.On("KVGet", "work_item_state_issue-prio").Return(cachedData, nil)
+
+	// Assignee hash cache: nil = first event (no assignee change)
+	api.On("KVGet", "work_item_assignees_issue-prio").Return(nil, nil)
+
+	// Cache updates
+	api.On("KVSetWithOptions", mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, "work_item_state_") || strings.HasPrefix(key, "work_item_assignees_")
+	}), mock.AnythingOfType("[]uint8"), mock.AnythingOfType("model.PluginKVSetOptions")).Return(true, nil).Maybe()
+
+	// CreatePost with priority change card
+	api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
+		if post.ChannelId != "channel-1" || post.UserId != "bot-user-id" {
+			return false
+		}
+		attachments := post.Attachments()
+		if len(attachments) == 0 {
+			return false
+		}
+		att := attachments[0]
+		return strings.Contains(att.Title, "Prioridad cambiada") &&
+			strings.Contains(att.Title, "Optimize queries") &&
+			att.Color == "#3f76ff"
+	})).Return(&model.Post{}, nil)
+
+	req := httptest.NewRequest("POST", "/api/v1/webhook/plane", bytes.NewReader(body))
+	req.Header.Set("X-Plane-Signature", signature)
+	req.Header.Set("X-Plane-Delivery", "delivery-prio")
+	rr := httptest.NewRecorder()
+
+	p.router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	api.AssertCalled(t, "CreatePost", mock.Anything)
+}
+
+func TestWebhookTargetDateChange(t *testing.T) {
+	p, api := setupWebhookTestPlugin(t)
+
+	newDate := "2025-12-31"
+	body := buildWebhookIssuePayloadFull(t, "issue-date", "proj-1", "Ship release",
+		WebhookStateDetail{ID: "s1", Name: "In Progress", Group: "started"},
+		nil,
+		"medium",
+		&newDate,
+	)
+	signature := computeTestHMAC(body, "test-secret")
+
+	// Dedup
+	api.On("KVGet", "webhook_dedup_delivery-date").Return(nil, nil)
+	api.On("KVSetWithOptions", "webhook_dedup_delivery-date", []byte("1"),
+		mock.AnythingOfType("model.PluginKVSetOptions")).Return(true, nil)
+
+	// No plugin action
+	api.On("KVGet", "plugin_action_issue-date").Return(nil, nil)
+
+	// Bound channels
+	channelsData, _ := json.Marshal([]string{"channel-1"})
+	api.On("KVGet", "project_channels_proj-1").Return(channelsData, nil)
+
+	// Notification config: enabled
+	api.On("KVGet", "notify_config_channel-1").Return(nil, nil)
+
+	// Cached state: same state group, same priority, but different target_date
+	cachedState := &store.WorkItemStateCache{
+		StateGroup: "started",
+		StateName:  "In Progress",
+		Priority:   "medium",
+		TargetDate: "2025-06-01",
+	}
+	cachedData, _ := json.Marshal(cachedState)
+	api.On("KVGet", "work_item_state_issue-date").Return(cachedData, nil)
+
+	// Assignee hash cache: nil = first event
+	api.On("KVGet", "work_item_assignees_issue-date").Return(nil, nil)
+
+	// Cache updates
+	api.On("KVSetWithOptions", mock.MatchedBy(func(key string) bool {
+		return strings.HasPrefix(key, "work_item_state_") || strings.HasPrefix(key, "work_item_assignees_")
+	}), mock.AnythingOfType("[]uint8"), mock.AnythingOfType("model.PluginKVSetOptions")).Return(true, nil).Maybe()
+
+	// CreatePost with target date change card
+	api.On("CreatePost", mock.MatchedBy(func(post *model.Post) bool {
+		if post.ChannelId != "channel-1" || post.UserId != "bot-user-id" {
+			return false
+		}
+		attachments := post.Attachments()
+		if len(attachments) == 0 {
+			return false
+		}
+		att := attachments[0]
+		return strings.Contains(att.Title, "Fecha limite cambiada") &&
+			strings.Contains(att.Title, "Ship release") &&
+			att.Color == "#3f76ff"
+	})).Return(&model.Post{}, nil)
+
+	req := httptest.NewRequest("POST", "/api/v1/webhook/plane", bytes.NewReader(body))
+	req.Header.Set("X-Plane-Signature", signature)
+	req.Header.Set("X-Plane-Delivery", "delivery-date")
+	rr := httptest.NewRecorder()
+
+	p.router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	api.AssertCalled(t, "CreatePost", mock.Anything)
+}
+
 func TestWebhookUnboundProject(t *testing.T) {
 	p, api := setupWebhookTestPlugin(t)
 
@@ -638,6 +815,74 @@ func TestBuildCommentAttachment(t *testing.T) {
 	assert.Equal(t, "This is a comment", att.Text)
 	assert.Equal(t, "#3f76ff", att.Color)
 	assert.Equal(t, "Plane", att.Footer)
+}
+
+func TestBuildPriorityChangeAttachment(t *testing.T) {
+	t.Run("with old priority", func(t *testing.T) {
+		att := buildPriorityChangeAttachment("Fix bug", "low", "urgent", "https://plane.example.com/ws/browse/PROJ-1")
+		assert.Contains(t, att.Title, "🔺 Prioridad cambiada")
+		assert.Contains(t, att.Title, "Fix bug")
+		assert.Equal(t, "https://plane.example.com/ws/browse/PROJ-1", att.TitleLink)
+		assert.Equal(t, "#3f76ff", att.Color)
+		assert.Equal(t, "Plane", att.Footer)
+		require.GreaterOrEqual(t, len(att.Fields), 1)
+		assert.Equal(t, "Cambio", att.Fields[0].Title)
+		value := att.Fields[0].Value.(string)
+		assert.Contains(t, value, priorityLabel("low"))
+		assert.Contains(t, value, priorityLabel("urgent"))
+		assert.Contains(t, value, "->")
+	})
+
+	t.Run("without old priority", func(t *testing.T) {
+		att := buildPriorityChangeAttachment("Fix bug", "", "high", "https://example.com")
+		assert.Contains(t, att.Title, "🔺 Prioridad cambiada")
+		require.GreaterOrEqual(t, len(att.Fields), 1)
+		value := att.Fields[0].Value.(string)
+		assert.Contains(t, value, priorityLabel("high"))
+		// Should be "-> High ..." not "... -> High ..."
+		assert.True(t, strings.HasPrefix(value, "-> "), "expected value to start with '-> ' but got: %s", value)
+	})
+}
+
+func TestBuildTargetDateChangeAttachment(t *testing.T) {
+	t.Run("with old and new date", func(t *testing.T) {
+		att := buildTargetDateChangeAttachment("Fix bug", "2025-01-01", "2025-06-15", "https://plane.example.com/ws/browse/PROJ-1")
+		assert.Contains(t, att.Title, "📅 Fecha limite cambiada")
+		assert.Contains(t, att.Title, "Fix bug")
+		assert.Equal(t, "https://plane.example.com/ws/browse/PROJ-1", att.TitleLink)
+		assert.Equal(t, "#3f76ff", att.Color)
+		assert.Equal(t, "Plane", att.Footer)
+		require.GreaterOrEqual(t, len(att.Fields), 1)
+		assert.Equal(t, "Cambio", att.Fields[0].Title)
+		value := att.Fields[0].Value.(string)
+		assert.Contains(t, value, "2025-01-01")
+		assert.Contains(t, value, "2025-06-15")
+	})
+
+	t.Run("nil old date shows Sin fecha prefix", func(t *testing.T) {
+		att := buildTargetDateChangeAttachment("Fix bug", "", "2025-06-15", "https://example.com")
+		assert.Contains(t, att.Title, "📅 Fecha limite cambiada")
+		require.GreaterOrEqual(t, len(att.Fields), 1)
+		value := att.Fields[0].Value.(string)
+		assert.Contains(t, value, "2025-06-15")
+		// No old date means "-> newDate"
+		assert.True(t, strings.HasPrefix(value, "-> "), "expected value to start with '-> ' but got: %s", value)
+	})
+
+	t.Run("nil new date shows Sin fecha", func(t *testing.T) {
+		att := buildTargetDateChangeAttachment("Fix bug", "2025-01-01", "", "https://example.com")
+		require.GreaterOrEqual(t, len(att.Fields), 1)
+		value := att.Fields[0].Value.(string)
+		assert.Contains(t, value, "2025-01-01")
+		assert.Contains(t, value, "Sin fecha")
+	})
+
+	t.Run("both nil dates", func(t *testing.T) {
+		att := buildTargetDateChangeAttachment("Fix bug", "", "", "https://example.com")
+		require.GreaterOrEqual(t, len(att.Fields), 1)
+		value := att.Fields[0].Value.(string)
+		assert.Contains(t, value, "Sin fecha")
+	})
 }
 
 func TestBuildAssigneeChangeAttachment(t *testing.T) {

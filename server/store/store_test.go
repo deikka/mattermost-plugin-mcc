@@ -463,6 +463,117 @@ func TestDeleteChannelBindingUpdatesReverseIndex(t *testing.T) {
 	api.AssertCalled(t, "KVDelete", "project_channels_proj-001")
 }
 
+func TestRebuildReverseIndex(t *testing.T) {
+	t.Run("scans channel_project_ keys and populates project_channels_", func(t *testing.T) {
+		s, api := setupTestStore(t)
+
+		binding1 := &ChannelProjectBinding{
+			ProjectID:   "proj-001",
+			ProjectName: "Backend",
+			BoundBy:     "mm-user-1",
+			BoundAt:     1710000000,
+		}
+		binding1Data, _ := json.Marshal(binding1)
+
+		binding2 := &ChannelProjectBinding{
+			ProjectID:   "proj-001",
+			ProjectName: "Backend",
+			BoundBy:     "mm-user-2",
+			BoundAt:     1710000001,
+		}
+		binding2Data, _ := json.Marshal(binding2)
+
+		binding3 := &ChannelProjectBinding{
+			ProjectID:   "proj-002",
+			ProjectName: "Frontend",
+			BoundBy:     "mm-user-1",
+			BoundAt:     1710000002,
+		}
+		binding3Data, _ := json.Marshal(binding3)
+
+		// KVList returns keys including channel_project_ prefixed ones and other keys
+		api.On("KVList", 0, 100).Return([]string{
+			"channel_project_channel-1",
+			"channel_project_channel-2",
+			"channel_project_channel-3",
+			"user_plane_mm-user-1",
+			"notify_config_channel-1",
+		}, nil)
+
+		// GetChannelBinding reads for each channel_project_ key
+		api.On("KVGet", "channel_project_channel-1").Return(binding1Data, nil)
+		api.On("KVGet", "channel_project_channel-2").Return(binding2Data, nil)
+		api.On("KVGet", "channel_project_channel-3").Return(binding3Data, nil)
+
+		// AddProjectChannel: for proj-001 (channel-1, then channel-2) and proj-002 (channel-3)
+		// First call for proj-001: empty list -> adds channel-1
+		api.On("KVGet", "project_channels_proj-001").Return(nil, nil).Once()
+		api.On("KVSet", "project_channels_proj-001", mock.AnythingOfType("[]uint8")).Return(nil).Once()
+
+		// Second call for proj-001: already has channel-1 -> adds channel-2
+		existingCh1, _ := json.Marshal([]string{"channel-1"})
+		api.On("KVGet", "project_channels_proj-001").Return(existingCh1, nil).Once()
+		api.On("KVSet", "project_channels_proj-001", mock.AnythingOfType("[]uint8")).Return(nil).Once()
+
+		// First call for proj-002: empty list -> adds channel-3
+		api.On("KVGet", "project_channels_proj-002").Return(nil, nil).Once()
+		api.On("KVSet", "project_channels_proj-002", mock.AnythingOfType("[]uint8")).Return(nil).Once()
+
+		count, err := s.RebuildReverseIndex()
+		require.NoError(t, err)
+		assert.Equal(t, 3, count)
+
+		// Verify proj-001 reverse index was set with both channels
+		api.AssertCalled(t, "KVSet", "project_channels_proj-001", mock.MatchedBy(func(data []byte) bool {
+			var saved []string
+			_ = json.Unmarshal(data, &saved)
+			return len(saved) == 2
+		}))
+
+		// Verify proj-002 reverse index was set
+		api.AssertCalled(t, "KVSet", "project_channels_proj-002", mock.MatchedBy(func(data []byte) bool {
+			var saved []string
+			_ = json.Unmarshal(data, &saved)
+			return len(saved) == 1 && saved[0] == "channel-3"
+		}))
+	})
+
+	t.Run("empty KV store returns zero", func(t *testing.T) {
+		s, api := setupTestStore(t)
+
+		api.On("KVList", 0, 100).Return([]string{}, nil)
+
+		count, err := s.RebuildReverseIndex()
+		require.NoError(t, err)
+		assert.Equal(t, 0, count)
+	})
+
+	t.Run("KVList error returns error", func(t *testing.T) {
+		s, api := setupTestStore(t)
+
+		api.On("KVList", 0, 100).Return(nil, &model.AppError{Message: "list error"})
+
+		count, err := s.RebuildReverseIndex()
+		require.Error(t, err)
+		assert.Equal(t, 0, count)
+		assert.Contains(t, err.Error(), "KVList failed")
+	})
+
+	t.Run("skips non channel_project_ keys", func(t *testing.T) {
+		s, api := setupTestStore(t)
+
+		api.On("KVList", 0, 100).Return([]string{
+			"user_plane_mm-user-1",
+			"notify_config_channel-1",
+			"digest_config_channel-1",
+		}, nil)
+
+		count, err := s.RebuildReverseIndex()
+		require.NoError(t, err)
+		assert.Equal(t, 0, count)
+	})
+}
+
 func TestGetNotificationConfig(t *testing.T) {
 	t.Run("config exists", func(t *testing.T) {
 		s, api := setupTestStore(t)
