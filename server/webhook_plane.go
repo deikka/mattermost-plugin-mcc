@@ -42,6 +42,7 @@ type WebhookIssueData struct {
 	Priority   string             `json:"priority"`
 	Project    string             `json:"project"`
 	SequenceID int                `json:"sequence_id"`
+	TargetDate *string            `json:"target_date"`
 	CreatedAt  string             `json:"created_at"`
 	UpdatedAt  string             `json:"updated_at"`
 }
@@ -161,7 +162,8 @@ func (p *Plugin) handleIssueWebhook(event *PlaneWebhookEvent) {
 
 	// Detect change types by comparing with cached state
 	cfg := p.getConfiguration()
-	taskURL := buildTaskURL(cfg.PlaneURL, cfg.PlaneWorkspace, "", issueData.Project, issueData.ID, issueData.SequenceID)
+	projectIdentifier := p.getProjectIdentifier(issueData.Project)
+	taskURL := buildTaskURL(cfg.PlaneURL, cfg.PlaneWorkspace, projectIdentifier, issueData.Project, issueData.ID, issueData.SequenceID)
 
 	// Read cached state
 	var cachedState *store.WorkItemStateCache
@@ -183,6 +185,22 @@ func (p *Plugin) handleIssueWebhook(event *PlaneWebhookEvent) {
 	previousHash, _ := p.API.KVGet("work_item_assignees_" + issueData.ID)
 	if previousHash != nil && string(previousHash) != currentAssigneeHash {
 		assigneeChanged = true
+	}
+
+	// Detect priority change
+	var priorityChanged bool
+	if cachedState != nil && cachedState.Priority != issueData.Priority {
+		priorityChanged = true
+	}
+
+	// Detect target date change
+	var targetDateChanged bool
+	currentTargetDate := ""
+	if issueData.TargetDate != nil {
+		currentTargetDate = *issueData.TargetDate
+	}
+	if cachedState != nil && cachedState.TargetDate != currentTargetDate {
+		targetDateChanged = true
 	}
 
 	// Build appropriate notification card(s)
@@ -207,6 +225,24 @@ func (p *Plugin) handleIssueWebhook(event *PlaneWebhookEvent) {
 
 	if assigneeChanged {
 		att := buildAssigneeChangeAttachment(issueData.Name, issueData.Assignees, taskURL)
+		attachments = append(attachments, att)
+	}
+
+	if priorityChanged {
+		oldPriority := ""
+		if cachedState != nil {
+			oldPriority = cachedState.Priority
+		}
+		att := buildPriorityChangeAttachment(issueData.Name, oldPriority, issueData.Priority, taskURL)
+		attachments = append(attachments, att)
+	}
+
+	if targetDateChanged {
+		oldDate := ""
+		if cachedState != nil {
+			oldDate = cachedState.TargetDate
+		}
+		att := buildTargetDateChangeAttachment(issueData.Name, oldDate, currentTargetDate, taskURL)
 		attachments = append(attachments, att)
 	}
 
@@ -277,7 +313,8 @@ func (p *Plugin) handleIssueCommentWebhook(event *PlaneWebhookEvent) {
 
 	// Build comment card
 	cfg := p.getConfiguration()
-	taskURL := buildTaskURL(cfg.PlaneURL, cfg.PlaneWorkspace, "", projectID, commentData.Issue, 0)
+	projectIdentifier := p.getProjectIdentifier(projectID)
+	taskURL := buildTaskURL(cfg.PlaneURL, cfg.PlaneWorkspace, projectIdentifier, projectID, commentData.Issue, 0)
 
 	actorName := commentData.ActorDetail.DisplayName
 	if actorName == "" {
@@ -318,9 +355,15 @@ func (p *Plugin) handleIssueCommentWebhook(event *PlaneWebhookEvent) {
 
 // cacheIssueState stores the current issue state and assignee hash in KV store with 7-day TTL.
 func (p *Plugin) cacheIssueState(issueID string, issueData *WebhookIssueData) {
+	targetDate := ""
+	if issueData.TargetDate != nil {
+		targetDate = *issueData.TargetDate
+	}
 	cache := &store.WorkItemStateCache{
 		StateGroup: issueData.State.Group,
 		StateName:  issueData.State.Name,
+		Priority:   issueData.Priority,
+		TargetDate: targetDate,
 		CachedAt:   time.Now().Unix(),
 	}
 	data, _ := json.Marshal(cache)
@@ -422,6 +465,53 @@ func buildCommentAttachment(taskName, commentText, actorName, taskURL string) *m
 		Text:      commentText,
 		Fields:    fields,
 		Footer:    "Plane",
+	}
+}
+
+// buildPriorityChangeAttachment creates a SlackAttachment for a priority change notification.
+func buildPriorityChangeAttachment(taskName, oldPriority, newPriority, taskURL string) *model.SlackAttachment {
+	changeValue := ""
+	if oldPriority == "" {
+		changeValue = fmt.Sprintf("-> %s", priorityLabel(newPriority))
+	} else {
+		changeValue = fmt.Sprintf("%s -> %s", priorityLabel(oldPriority), priorityLabel(newPriority))
+	}
+
+	return &model.SlackAttachment{
+		Color:     "#3f76ff",
+		Title:     fmt.Sprintf("🔺 Prioridad cambiada: %s", taskName),
+		TitleLink: taskURL,
+		Fields: []*model.SlackAttachmentField{
+			{Title: "Cambio", Value: changeValue, Short: true},
+		},
+		Footer: "Plane",
+	}
+}
+
+// buildTargetDateChangeAttachment creates a SlackAttachment for a due date change notification.
+func buildTargetDateChangeAttachment(taskName, oldDate, newDate, taskURL string) *model.SlackAttachment {
+	formatDate := func(d string) string {
+		if d == "" {
+			return "Sin fecha"
+		}
+		return d
+	}
+
+	changeValue := ""
+	if oldDate == "" {
+		changeValue = fmt.Sprintf("-> %s", formatDate(newDate))
+	} else {
+		changeValue = fmt.Sprintf("%s -> %s", formatDate(oldDate), formatDate(newDate))
+	}
+
+	return &model.SlackAttachment{
+		Color:     "#3f76ff",
+		Title:     fmt.Sprintf("📅 Fecha limite cambiada: %s", taskName),
+		TitleLink: taskURL,
+		Fields: []*model.SlackAttachmentField{
+			{Title: "Cambio", Value: changeValue, Short: true},
+		},
+		Footer: "Plane",
 	}
 }
 

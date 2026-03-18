@@ -31,6 +31,10 @@ type Plugin struct {
 	planeClient *plane.Client
 	store       *store.Store
 	digestJob   *cluster.Job
+
+	// projectIdentifiers caches project ID -> identifier mapping for URL building.
+	projectIdentifiers   map[string]string
+	projectIdentifiersMu sync.RWMutex
 }
 
 // OnActivate is invoked when the plugin is activated. If an error is returned, the plugin
@@ -51,9 +55,17 @@ func (p *Plugin) OnActivate() error {
 	// Initialize KV store
 	p.store = store.New(p.API)
 
-	// Initialize Plane client
+	// Rebuild reverse index for any bindings created before Phase 3
+	if count, err := p.store.RebuildReverseIndex(); err != nil {
+		p.API.LogWarn("Failed to rebuild reverse index", "error", err.Error())
+	} else if count > 0 {
+		p.API.LogInfo("Rebuilt reverse index for existing bindings", "count", count)
+	}
+
+	// Initialize Plane client and project identifier cache
 	cfg := p.getConfiguration()
 	p.planeClient = plane.NewClient(cfg.PlaneURL, cfg.PlaneAPIKey, cfg.PlaneWorkspace)
+	p.projectIdentifiers = make(map[string]string)
 
 	// Register slash commands
 	if err := p.registerCommands(); err != nil {
@@ -185,6 +197,35 @@ func (p *Plugin) MessageHasBeenPosted(c *plugin.Context, post *model.Post) {
 // The entry expires after 5 minutes (300 seconds).
 func (p *Plugin) markPluginAction(workItemID string) {
 	_, _ = p.API.KVSetWithOptions("plugin_action_"+workItemID, []byte("1"), model.PluginKVSetOptions{ExpireInSeconds: 300})
+}
+
+// getProjectIdentifier returns the Plane project identifier (e.g., "TENDERIO") for a project ID.
+// Uses an in-memory cache, falling back to the Plane API on cache miss.
+func (p *Plugin) getProjectIdentifier(projectID string) string {
+	p.projectIdentifiersMu.RLock()
+	if id, ok := p.projectIdentifiers[projectID]; ok {
+		p.projectIdentifiersMu.RUnlock()
+		return id
+	}
+	p.projectIdentifiersMu.RUnlock()
+
+	// Cache miss — fetch from Plane API
+	projects, err := p.planeClient.ListProjects()
+	if err != nil {
+		p.API.LogWarn("Failed to fetch projects for identifier cache", "error", err.Error())
+		return ""
+	}
+
+	p.projectIdentifiersMu.Lock()
+	for _, proj := range projects {
+		p.projectIdentifiers[proj.ID] = proj.Identifier
+	}
+	p.projectIdentifiersMu.Unlock()
+
+	p.projectIdentifiersMu.RLock()
+	identifier := p.projectIdentifiers[projectID]
+	p.projectIdentifiersMu.RUnlock()
+	return identifier
 }
 
 func main() {

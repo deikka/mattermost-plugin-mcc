@@ -239,6 +239,8 @@ type DigestConfig struct {
 type WorkItemStateCache struct {
 	StateGroup string `json:"state_group"`
 	StateName  string `json:"state_name"`
+	Priority   string `json:"priority,omitempty"`
+	TargetDate string `json:"target_date,omitempty"`
 	CachedAt   int64  `json:"cached_at"`
 }
 
@@ -352,6 +354,47 @@ func (s *Store) AddProjectChannel(projectID, channelID string) error {
 
 	channels = append(channels, channelID)
 	return s.SaveProjectChannels(projectID, channels)
+}
+
+// RebuildReverseIndex scans all channel_project_ bindings and rebuilds the
+// project_channels_ reverse index. This ensures bindings created before the
+// reverse index existed are properly indexed for webhook routing.
+func (s *Store) RebuildReverseIndex() (int, error) {
+	page := 0
+	perPage := 100
+	count := 0
+
+	for {
+		keys, appErr := s.api.KVList(page, perPage)
+		if appErr != nil {
+			return count, fmt.Errorf("KVList failed: %s", appErr.Error())
+		}
+
+		for _, key := range keys {
+			if len(key) <= len(prefixChannelProject) {
+				continue
+			}
+			if key[:len(prefixChannelProject)] != prefixChannelProject {
+				continue
+			}
+			channelID := key[len(prefixChannelProject):]
+			binding, err := s.GetChannelBinding(channelID)
+			if err != nil || binding == nil {
+				continue
+			}
+			if err := s.AddProjectChannel(binding.ProjectID, channelID); err != nil {
+				continue
+			}
+			count++
+		}
+
+		if len(keys) < perPage {
+			break
+		}
+		page++
+	}
+
+	return count, nil
 }
 
 // RemoveProjectChannel removes a channel from the reverse index for a project.

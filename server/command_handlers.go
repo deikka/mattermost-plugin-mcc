@@ -561,20 +561,21 @@ func formatTaskCreatedMessage(title, projectName, workItemURL string) string {
 }
 
 // stateGroupEmoji maps a Plane state group to its display emoji.
+// Uses Unicode characters instead of shortcodes for compatibility with SlackAttachment titles.
 func stateGroupEmoji(group string) string {
 	switch group {
 	case "backlog":
-		return ":inbox_tray:"
+		return "📥"
 	case "unstarted":
-		return ":white_circle:"
+		return "⚪"
 	case "started":
-		return ":large_blue_circle:"
+		return "🔵"
 	case "completed":
-		return ":white_check_mark:"
+		return "✅"
 	case "cancelled":
-		return ":no_entry_sign:"
+		return "🚫"
 	default:
-		return ":white_circle:"
+		return "⚪"
 	}
 }
 
