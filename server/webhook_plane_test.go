@@ -332,6 +332,7 @@ func TestWebhookIssueStateChange(t *testing.T) {
 	cachedState := &store.WorkItemStateCache{
 		StateGroup: "backlog",
 		StateName:  "Backlog",
+		Priority:   "medium",
 	}
 	cachedData, _ := json.Marshal(cachedState)
 	api.On("KVGet", "work_item_state_issue-1").Return(cachedData, nil)
@@ -398,10 +399,10 @@ func TestWebhookAssigneeChange(t *testing.T) {
 	api.On("KVGet", "notify_config_channel-1").Return(nil, nil)
 
 	// Cached state: same group (no state change) but we'll cache an assignee hash
-	// First event for this item -- no state cache
 	cachedState := &store.WorkItemStateCache{
 		StateGroup: "started",
 		StateName:  "In Progress",
+		Priority:   "medium",
 	}
 	cachedData, _ := json.Marshal(cachedState)
 	api.On("KVGet", "work_item_state_issue-2").Return(cachedData, nil)

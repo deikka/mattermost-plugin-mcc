@@ -70,7 +70,7 @@ func TestBuildWorkItemAttachment(t *testing.T) {
 	require.Len(t, attachment.Fields, 4)
 	assert.Equal(t, "Estado", attachment.Fields[0].Title)
 	assert.Contains(t, attachment.Fields[0].Value, "In Progress")
-	assert.Contains(t, attachment.Fields[0].Value, ":large_blue_circle:")
+	assert.Contains(t, attachment.Fields[0].Value, "🔵")
 	assert.Equal(t, "Prioridad", attachment.Fields[1].Title)
 	assert.Contains(t, attachment.Fields[1].Value, "High")
 	assert.Equal(t, "Asignado", attachment.Fields[2].Title)

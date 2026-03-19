@@ -676,9 +676,9 @@ func TestPlaneMine(t *testing.T) {
 			strings.Contains(msg, "Fix login bug") &&
 			strings.Contains(msg, "Add tests") &&
 			strings.Contains(msg, "Deploy v2") &&
-			strings.Contains(msg, ":large_blue_circle:") && // started emoji
-			strings.Contains(msg, ":white_circle:") && // unstarted emoji
-			strings.Contains(msg, ":white_check_mark:") && // completed emoji
+			strings.Contains(msg, "🔵") && // started emoji (Unicode)
+			strings.Contains(msg, "⚪") && // unstarted emoji (Unicode)
+			strings.Contains(msg, "✅") && // completed emoji (Unicode)
 			strings.Contains(msg, "High :red_circle:") && // priority
 			strings.Contains(msg, "Abrir Plane")
 	}))
